@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.granite.base.StringTools;
 import org.granite.classification.model.Classification;
-import org.granite.classification.model.ClassifierCheat;
 import org.granite.classification.model.TrainingText;
 import org.granite.classification.utils.TextUtils;
 import org.granite.io.FileTools;
@@ -65,7 +64,6 @@ public class Classifier {
 
     public static Classifier train(final File trainingFile,
                                    final File stopWordFile,
-                                   final File cheatFile,
                                    final File textPatchFile,
                                    final int sharedWordFilterThreshold) {
         checkNotNull(trainingFile, "trainingFile");
@@ -73,7 +71,6 @@ public class Classifier {
         final Classifier result = new Classifier(sharedWordFilterThreshold);
 
         result.loadStopWordFile(stopWordFile);
-        result.loadCheatFile(cheatFile);
         result.loadTextPatchFile(textPatchFile);
         result.loadTrainingFile(trainingFile);
         result.filterSharedWords();
@@ -220,55 +217,6 @@ public class Classifier {
         }
 
         return result;
-    }
-
-    private void loadCheatFile(final File cheatFile) {
-        classificationMap.clear();
-
-        if (cheatFile == null) return;
-
-        if (!FileTools.fileExistsAndCanRead(cheatFile)) {
-            LogTools.info("Cannot read from cheat file {0}", cheatFile.getAbsolutePath());
-            return;
-        }
-
-        final ObjectMapper objectMapper = new ObjectMapper();
-
-        int lineCount = 0;
-
-        try {
-            final List<String> lines = Files.readLines(cheatFile, Charset.defaultCharset());
-
-            for (String line : lines) {
-                final String trimmed = line.trim().toLowerCase();
-
-                if (trimmed.startsWith("#")) continue;
-
-                final ClassifierCheat classifierCheat = objectMapper.readValue(trimmed, ClassifierCheat.class);
-
-                lineCount++;
-
-                Classification classification = classificationMap.get(classifierCheat.getLabel());
-
-                if (classification == null) {
-                    LogTools.info("Adding cheat for {0}", classifierCheat.getLabel());
-
-                    classification = new Classification(classifierCheat);
-
-                    classificationMap.put(classifierCheat.getLabel(), classification);
-                }
-
-                classification.addAll(classifierCheat.getKeywords());
-                classification.getFalseSignalWords().addAll(classifierCheat.getFalseSignalWords());
-            }
-
-            LogTools.info("Loaded {0} lines from cheat file", String.valueOf(lineCount));
-
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
-        }
-
-
     }
 
     private void loadStopWordFile(final File stopWordFile) {

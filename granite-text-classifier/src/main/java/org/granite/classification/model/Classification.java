@@ -7,17 +7,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class Classification implements Comparable<Classification> {
     private String label;
-    private ClassifierCheat classifierCheat;
     private TreeMap<String, Integer> wordFrequencyMap = new TreeMap<>();
     private TreeSet<String> falseSignalWords = new TreeSet<>();
     private int trainingTextCount = 0;
 
     Classification() {
-    }
-
-    public Classification(final ClassifierCheat classifierCheat) {
-        this.label = checkNotNull(classifierCheat, "classifierCheat").getLabel();
-        this.classifierCheat = classifierCheat;
     }
 
     public Classification(final String label) {
@@ -26,10 +20,6 @@ public class Classification implements Comparable<Classification> {
 
     public String getLabel() {
         return label;
-    }
-
-    public ClassifierCheat getClassifierCheat() {
-        return classifierCheat;
     }
 
     public TreeMap<String, Integer> getWordFrequencyMap() {

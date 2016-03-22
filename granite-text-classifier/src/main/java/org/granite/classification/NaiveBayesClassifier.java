@@ -74,7 +74,7 @@ public class NaiveBayesClassifier extends BasicClassifier {
         for (Map.Entry<String, Integer> plattScaleEntry : plattScaleTotalsMap
                 .entrySet()) {
 
-            double positiveScore = ((double)plattScaleEntry.getValue() + 1.0) / ((double)plattScaleEntry.getValue() + 2.0);
+            double positiveScore = ((double) plattScaleEntry.getValue() + 1.0) / ((double) plattScaleEntry.getValue() + 2.0);
 
             if (positiveScore > .5) {
                 result.put(plattScaleEntry.getKey(), positiveScore);
@@ -236,5 +236,21 @@ public class NaiveBayesClassifier extends BasicClassifier {
 
         LogTools.info("Loaded {0} lines from training text", String.valueOf(trainingSetCount));
 
+    }
+
+    public HashMap<String, Double> getProbabilityOfClassification() {
+        return probabilityOfClassification;
+    }
+
+    public HashMap<String, HashMap<String, Double>> getProbabilityOfWordGivenClassification() {
+        return probabilityOfWordGivenClassification;
+    }
+
+    public HashMap<String, Integer> getCorpusWordFrequency() {
+        return corpusWordFrequency;
+    }
+
+    public int getTotalCorpusWordCount() {
+        return totalCorpusWordCount;
     }
 }

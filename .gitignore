@@ -17,6 +17,10 @@ hs_err_pid*
 
 # build files
 .gradle
+gradlew.bat
 gradle
 build
+
+# local configs
+local-*properties
 

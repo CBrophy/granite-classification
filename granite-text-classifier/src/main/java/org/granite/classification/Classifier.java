@@ -4,7 +4,6 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +18,7 @@ import org.granite.log.LogTools;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,31 +26,53 @@ import java.util.TreeMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 public class Classifier {
 
     private HashSet<String> stopWords = new HashSet<>();
     private TreeMap<String, Classification> classificationMap = new TreeMap<>();
     private TreeMap<String, String> textPatchMap = new TreeMap<>();
-    private int sharedWordFilterThreshold;
+    private TreeMap<String, Integer> wordFrequencyMap = new TreeMap<>();
+    private int trainingTextCount = 0;
+    private final double noiseProbabilityMaximum;
+    final Splitter whiteSpaceSplitter = Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().trimResults();
 
-    Classifier(){}
-
-    public Classifier(final int sharedWordFilterThreshold) {
-        this.sharedWordFilterThreshold = sharedWordFilterThreshold;
+    Classifier(double noiseProbabilityMaximum) {
+        this.noiseProbabilityMaximum = noiseProbabilityMaximum;
     }
 
-    public Map<String, Double> classify(final String text){
-        if(StringTools.isNullOrEmpty(text)) return ImmutableMap.of();
+    public ImmutableMap<String, Double> classify(final String text) {
+        if (StringTools.isNullOrEmpty(text)) return ImmutableMap.of();
 
-        final String cleanText = TextUtils.cleanText(text);
+        final HashSet<String> allWords = textToWords(text);
 
-        return ImmutableMap.of();
+        if (allWords.isEmpty()) {
+            return ImmutableMap.of();
+        }
+
+        final ImmutableMap.Builder<String, Double> result = new ImmutableMap.Builder<>();
+
+        for (Classification classification : classificationMap.values()) {
+
+            if (classification.getWordProbabilityMap().isEmpty()) {
+                continue;
+            }
+
+            final double score = classification.score(allWords);
+
+            if (score > Double.MIN_VALUE) {
+                result.put(classification.getLabel(), score);
+            }
+
+        }
+
+        return result.build();
     }
 
-    private String applyTextPatches(final String text){
+    private String applyTextPatches(final String text) {
 
-        if(StringTools.isNullOrEmpty(text)) return text;
+        if (StringTools.isNullOrEmpty(text)) return text;
 
         String result = text;
 
@@ -65,55 +87,21 @@ public class Classifier {
     public static Classifier train(final File trainingFile,
                                    final File stopWordFile,
                                    final File textPatchFile,
-                                   final int sharedWordFilterThreshold) {
+                                   final double noiseProbabilityMaximum) {
         checkNotNull(trainingFile, "trainingFile");
 
-        final Classifier result = new Classifier(sharedWordFilterThreshold);
+        final Classifier result = new Classifier(noiseProbabilityMaximum);
 
         result.loadStopWordFile(stopWordFile);
         result.loadTextPatchFile(textPatchFile);
         result.loadTrainingFile(trainingFile);
-        result.filterSharedWords();
+
+        result.calculateProbabilities();
 
         return result;
     }
 
-    private void filterSharedWords() {
-        if (sharedWordFilterThreshold <= 0) {
-            LogTools.info("Shared word filter is disabled");
-            return;
-        }
-
-        for (Classification classification : classificationMap.values()) {
-
-            for (Classification other : classificationMap.values()) {
-
-                if (other.equals(classification)) {
-                    continue;
-                }
-
-                final Sets.SetView<String> sharedWords = Sets.intersection(classification.getWordFrequencyMap().keySet(), other.getWordFrequencyMap().keySet());
-
-                for (String sharedWord : sharedWords) {
-
-                    filterSharedWord(classification, sharedWord);
-                    filterSharedWord(other, sharedWord);
-                }
-
-            }
-
-        }
-
-    }
-
-    private void filterSharedWord(final Classification classification, final String word) {
-        if (classification.getWordFrequencyMap().get(word) <= sharedWordFilterThreshold) {
-            LogTools.info("Discarding shared word {0} from classification {1}", word, classification.getLabel());
-            classification.getWordFrequencyMap().remove(word);
-        }
-    }
-
-    private void loadTextPatchFile(final File textPatchFile){
+    private void loadTextPatchFile(final File textPatchFile) {
         this.textPatchMap.clear();
 
         if (textPatchFile == null) return;
@@ -140,7 +128,7 @@ public class Classifier {
 
                 final List<String> patchParts = tabSplitter.splitToList(trimmed);
 
-                if(patchParts.size() != 2){
+                if (patchParts.size() != 2) {
                     LogTools.warn("Skipping text patch {0} due to too many or too few tab chars", line);
                     continue;
                 }
@@ -156,67 +144,178 @@ public class Classifier {
 
     }
 
-    private void loadTrainingFile(final File trainingFile) {
-        checkNotNull(trainingFile, "trainingFile");
-        checkArgument(FileTools.fileExistsAndCanRead(trainingFile), "cannot read training file");
+    HashSet<String> textToWords(final String text) {
+        final List<String> wordList = new ArrayList<>(whiteSpaceSplitter
+                .splitToList(TextUtils.cleanText(text)));
+
+        filterStopWords(wordList);
+
+        if (wordList.isEmpty()) {
+            LogTools.info("No significant words in text: {0}", text);
+            return new HashSet<>();
+        }
+
+        final HashSet<String> allWords = new HashSet<>();
+
+        allWords.addAll(wordList);
+
+        allWords.addAll(createWordGroups(wordList));
+
+        return allWords;
+    }
+
+    public static ImmutableMap<Integer, TrainingText> loadTrainingText(final File trainingTextFile) {
+        checkNotNull(trainingTextFile, "trainingFile");
+        checkArgument(FileTools.fileExistsAndCanRead(trainingTextFile), "cannot read training file: %s", trainingTextFile.getAbsolutePath());
+
+        final ObjectMapper objectMapper = new ObjectMapper();
+
+        final ImmutableMap.Builder<Integer, TrainingText> result = ImmutableMap.builder();
 
         try {
-            final List<String> lines = Files.readLines(trainingFile, Charset.defaultCharset());
-
-            final ObjectMapper objectMapper = new ObjectMapper();
-
-            final Splitter whiteSpaceSplitter = Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().trimResults();
+            final List<String> lines = Files.readLines(trainingTextFile, Charset.defaultCharset());
 
             int lineCount = 0;
 
             for (String line : lines) {
+                lineCount++;
                 final String trimmed = line.trim().toLowerCase();
 
-                if (trimmed.startsWith("#")) continue;
+                if (trimmed.startsWith("#") || trimmed.isEmpty()) continue;
 
-                final TrainingText trainingText = objectMapper.readValue(trimmed, TrainingText.class);
+                TrainingText trainingText = null;
 
-                lineCount++;
-
-                final String cleanText = filterStopWords(TextUtils.cleanText(trainingText.getText()));
-
-                if (cleanText.isEmpty()) {
-                    LogTools.info("Skipping empty training text: {0}", String.valueOf(trainingText.getId()));
-                    continue;
+                try {
+                    trainingText = objectMapper.readValue(trimmed, TrainingText.class);
+                } catch (IOException e) {
+                    LogTools.error("Failed to deserialize json on line [{0}]: {1}", String.valueOf(lineCount), line);
+                    throw Throwables.propagate(e);
                 }
 
-                for (String label : trainingText.getClassifications()) {
-
-                    Classification classification = classificationMap.get(label);
-
-                    if (classification == null) {
-                        classification = new Classification(label);
-                        classificationMap.put(label, classification);
-                    }
-
-                    classification.setTrainingTextCount(classification.getTrainingTextCount() + 1);
-
-                    classification.addAll(whiteSpaceSplitter.splitToList(cleanText));
-
-                }
+                result.put(lineCount, trainingText);
 
             }
-
-            LogTools.info("Loaded {0} lines from training text", String.valueOf(lineCount));
-
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
+
+        return result.build();
     }
 
-    private String filterStopWords(final String text) {
-        String result = text;
+    private void loadTrainingFile(final File trainingFile) {
 
-        for (String stopWord : stopWords) {
-            result = result.replace(stopWord, "");
+        final ImmutableMap<Integer, TrainingText> trainingTextLineMap = loadTrainingText(trainingFile);
+
+        for (Map.Entry<Integer, TrainingText> trainingTextEntry : trainingTextLineMap.entrySet()) {
+            final int lineNumber = trainingTextEntry.getKey();
+            final TrainingText trainingText = trainingTextEntry.getValue();
+
+
+            final HashSet<String> allWords = textToWords(trainingText.getText());
+
+            if (allWords.isEmpty()) {
+                LogTools.info("Skipping useless training text on line [{0}]: {1}", String.valueOf(lineNumber), trainingText.getText());
+                continue;
+            }
+
+            this.trainingTextCount++;
+
+            final HashSet<Classification> sharedClassifications = new HashSet<>();
+
+            TextUtils.updateFrequencyMap(allWords, wordFrequencyMap);
+
+            for (String label : trainingText.getClassifications()) {
+
+                Classification classification = classificationMap.get(label);
+
+                if (classification == null) {
+                    classification = new Classification(label);
+                    classificationMap.put(label, classification);
+                }
+
+                sharedClassifications.add(classification);
+
+                classification.setClassificationFrequency(classification.getClassificationFrequency() + 1);
+
+                classification.addAll(allWords);
+
+            }
+
+            for (Classification classification : sharedClassifications) {
+                sharedClassifications
+                        .stream()
+                        .filter(sharedClassification -> !sharedClassification.equals(classification))
+                        .forEach(classification.getComplimentClassifications()::add);
+            }
+
+        }
+
+        LogTools.info("Loaded {0} lines from training text", String.valueOf(trainingTextLineMap.size()));
+
+
+    }
+
+    private void calculateProbabilities() {
+        checkState(trainingTextCount > 0, "No training text loaded");
+
+        for (Classification classification : classificationMap.values()) {
+
+            classification.setLikelihood((double) classification.getClassificationFrequency() / (double) getTrainingTextCount());
+
+            LogTools.info("Set classification {0} likelihood to {1}", classification.getLabel(), String.valueOf(classification.getLikelihood()));
+
+            for (Map.Entry<String, Integer> wordFrequencyEntry : classification
+                    .getWordFrequencyMap()
+                    .entrySet()) {
+
+                final double corpusProbability = (double) wordFrequencyMap.get(wordFrequencyEntry.getKey()) / (double) trainingTextCount;
+
+                if (corpusProbability > noiseProbabilityMaximum) {
+                    // The word is found everywhere in the training set - ignore it
+                    continue;
+                }
+
+                final double classificationProbability = (double) wordFrequencyEntry.getValue() / (double) classification.getClassificationFrequency();
+
+                if ((1.0 - classificationProbability) >= noiseProbabilityMaximum) {
+                    // The word is not common enough in this classification, drop as noise
+                    continue;
+                }
+
+                classification.getWordProbabilityMap().put(wordFrequencyEntry.getKey(), (1.0 - corpusProbability) * classificationProbability);
+
+            }
+
+            if (classification.getWordProbabilityMap().isEmpty()) {
+                LogTools.warn("Dropping label {0} due to low training significance. Either add more training data or consider that the label may be too vague.", classification.getLabel());
+            }
+
+        }
+
+    }
+
+    private HashSet<String> createWordGroups(final List<String> wordList) {
+        final HashSet<String> result = new HashSet<>();
+
+        for (int index = 0; index < wordList.size(); index++) {
+
+            if (index < wordList.size() - 1) {
+                result.add(wordList.get(index) + "_" + wordList.get(index + 1));
+            }
+
         }
 
         return result;
+    }
+
+    private void filterStopWords(final List<String> words) {
+        final int startIndex = words.size() - 1;
+
+        for (int index = startIndex; index >= 0; index--) {
+            if (stopWords.contains(words.get(index))) {
+                words.remove(index);
+            }
+        }
     }
 
     private void loadStopWordFile(final File stopWordFile) {
@@ -247,4 +346,23 @@ public class Classifier {
         LogTools.info("Loaded {0} stop words", String.valueOf(stopWords.size()));
     }
 
+    public HashSet<String> getStopWords() {
+        return stopWords;
+    }
+
+    public TreeMap<String, Classification> getClassificationMap() {
+        return classificationMap;
+    }
+
+    public TreeMap<String, String> getTextPatchMap() {
+        return textPatchMap;
+    }
+
+    public TreeMap<String, Integer> getWordFrequencyMap() {
+        return wordFrequencyMap;
+    }
+
+    public int getTrainingTextCount() {
+        return trainingTextCount;
+    }
 }

@@ -9,22 +9,21 @@ import org.junit.Test;
 
 import java.io.File;
 
-public class ClassifierTest {
+public class NaiveBayesClassifierTest {
     private final ApplicationConfiguration configuration = ConfigTools.readConfiguration("", "classifier.properties", "local-classifier.properties");
 
     @Test
-    public void testTraining(){
+    public void testTraining() {
         final File stopWordFile = new File(configuration.getString("classifier.stop-words-set"));
         final File trainingFile = new File(configuration.getString("classifier.training-set"));
         final File testingFile = new File(configuration.getString("classifier.test-set"));
 
-        final Classifier classifier =
-                Classifier.train(trainingFile,
-                        stopWordFile,
-                        null,
-                        .70);
+        final NaiveBayesClassifier classifier = new NaiveBayesClassifier();
 
-        final ImmutableMap<Integer, TrainingText> testingTextMap = Classifier.loadTrainingText(testingFile);
+        classifier.train(trainingFile,
+                stopWordFile);
+
+        final ImmutableMap<Integer, TrainingText> testingTextMap = NaiveBayesClassifier.loadTrainingText(testingFile);
 
         for (TrainingText testingText : testingTextMap
                 .values()) {

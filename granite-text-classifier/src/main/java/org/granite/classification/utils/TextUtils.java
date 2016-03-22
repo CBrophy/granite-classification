@@ -5,6 +5,7 @@ import com.google.common.base.Joiner;
 
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class TextUtils {
@@ -47,4 +48,15 @@ public class TextUtils {
                 });
     }
 
+    public static void updateFrequencyMap(final Map<String, Integer> sourceFrequencyMap, final Map<String, Integer> destinationFrequencyMap) {
+        checkNotNull(sourceFrequencyMap, "sourceFrequencyMap");
+        checkNotNull(destinationFrequencyMap, "destinationFrequencyMap");
+
+        for (Map.Entry<String, Integer> wordFrequencyEntry : sourceFrequencyMap.entrySet()) {
+            final int currentFrequency = destinationFrequencyMap.getOrDefault(wordFrequencyEntry.getKey(), 0);
+
+            destinationFrequencyMap.put(wordFrequencyEntry.getKey(), wordFrequencyEntry.getValue() + currentFrequency);
+        }
+
+    }
 }

@@ -12,19 +12,16 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 public class NaiveBayesClassifier extends BasicClassifier {
 
     private final HashMap<String, Double> probabilityOfClassification = new HashMap<>();
     private final HashMap<String, HashMap<String, Double>> probabilityOfWordGivenClassification = new HashMap<>();
-    private final HashMap<String, Integer> corpusWordFrequency = new HashMap<>();
-    private int totalCorpusWordCount = 0;
 
     public ImmutableMap<String, Double> classify(final String text) {
         if (StringTools.isNullOrEmpty(text)) return ImmutableMap.of();
 
-        final HashMap<String, Integer> allWords = textToWords(text);
+        final HashMap<String, Integer> allWords = textToFilteredWords(text);
 
         if (allWords.isEmpty()) {
             return ImmutableMap.of();
@@ -32,22 +29,21 @@ public class NaiveBayesClassifier extends BasicClassifier {
 
         final HashMap<String, Double> result = new HashMap<>();
 
-        int totalWordCount = 0;
+        return ImmutableMap.copyOf(result);
+    }
 
-        for (Integer wordCount : allWords
-                .values()) {
-            totalWordCount += wordCount;
+    public ImmutableMap<String, HashMap<String, Double>> findWordPosteriorProbabilities(final String text) {
+        if (StringTools.isNullOrEmpty(text)) return ImmutableMap.of();
+
+        final HashMap<String, Integer> allWords = textToFilteredWords(text);
+
+        if (allWords.isEmpty()) {
+            return ImmutableMap.of();
         }
 
-        final HashMap<String, Integer> plattScaleTotalsMap = new HashMap<>();
+        HashMap<String, HashMap<String, Double>> result = new HashMap<>();
 
-        for (Map.Entry<String, Integer> wordCountEntry : allWords.entrySet()) {
-
-            final String word = wordCountEntry.getKey();
-
-            final int count = wordCountEntry.getValue();
-
-            final double probabilityOfWord = findProbabilityOfWord(word, count, totalWordCount);
+        for (String word : allWords.keySet()) {
 
             final HashMap<String, Double> classificationNumerators = findPriorTimesLikelihood(word);
 
@@ -56,43 +52,11 @@ public class NaiveBayesClassifier extends BasicClassifier {
                 continue;
             }
 
-
-            for (Map.Entry<String, Double> numeratorEntry : classificationNumerators.entrySet()) {
-
-                final double posterior = numeratorEntry.getValue() / probabilityOfWord;
-
-                final int currentTotal = plattScaleTotalsMap.getOrDefault(numeratorEntry.getKey(), 0);
-
-                if (1 - posterior < posterior) {
-                    plattScaleTotalsMap.put(numeratorEntry.getKey(), currentTotal + 1);
-                }
-
-            }
+            result.put(word, classificationNumerators);
 
         }
-
-        for (Map.Entry<String, Integer> plattScaleEntry : plattScaleTotalsMap
-                .entrySet()) {
-
-            double positiveScore = ((double) plattScaleEntry.getValue() + 1.0) / ((double) plattScaleEntry.getValue() + 2.0);
-
-            if (positiveScore > .5) {
-                result.put(plattScaleEntry.getKey(), positiveScore);
-            }
-        }
-
 
         return ImmutableMap.copyOf(result);
-    }
-
-    private double findProbabilityOfWord(final String word, final int frequency, final int totalFrequency) {
-
-        // The observed frequency is included in the probability of word calculation
-
-        final int currentWordFrequency = corpusWordFrequency.getOrDefault(word, 0);
-
-        return (double) (currentWordFrequency + frequency) / (double) (totalCorpusWordCount + totalFrequency);
-
     }
 
     private HashMap<String, Double> findPriorTimesLikelihood(final String word) {
@@ -127,38 +91,18 @@ public class NaiveBayesClassifier extends BasicClassifier {
         checkNotNull(trainingSet, "trainingSet");
         checkArgument(!trainingSet.isEmpty(), "trainingSet is empty");
 
-        int trainingSetCount = 0;
-
         final HashMap<String, HashMap<String, Integer>> wordClassificationFrequencyMap = new HashMap<>();
+
         final HashMap<String, Integer> classificationFrequency = new HashMap<>();
 
         for (Map.Entry<Integer, TrainingText> trainingTextEntry : trainingSet.entrySet()) {
 
-            final int lineNumber = trainingTextEntry.getKey();
-
             final TrainingText trainingText = trainingTextEntry.getValue();
 
-            final HashMap<String, Integer> trainingLineWordFrequency = textToWords(trainingText.getText());
-
-            if (trainingLineWordFrequency.isEmpty()) {
-                LogTools.info("Skipping useless training text on line [{0}]: {1}", String.valueOf(lineNumber), trainingText.getText());
-                continue;
-            }
-
-            trainingSetCount++;
-
-
-            for (Map.Entry<String, Integer> wordFrequencyEntry : trainingLineWordFrequency.entrySet()) {
+            for (Map.Entry<String, Integer> wordFrequencyEntry : trainingText.getWordFrequencies().entrySet()) {
 
                 final String word = wordFrequencyEntry.getKey();
                 final int frequency = wordFrequencyEntry.getValue();
-
-                totalCorpusWordCount += frequency;
-
-                // Increment the word frequency in the entire training set
-                final int currentTrainingSetFrequency = corpusWordFrequency.getOrDefault(word, 0);
-
-                corpusWordFrequency.put(word, currentTrainingSetFrequency + frequency);
 
                 // Increment this word's classifications' frequency by the number of times this word occurs
                 // int this training line
@@ -187,10 +131,7 @@ public class NaiveBayesClassifier extends BasicClassifier {
 
         }
 
-        checkState(totalCorpusWordCount > 0, "No unfiltered words in training corpus");
-        checkState(!corpusWordFrequency.isEmpty(), "No unfiltered words in corpus frequency map");
-
-        LogTools.info("Training set has {0} classifications and {0} words", String.valueOf(classificationFrequency.size()), String.valueOf(corpusWordFrequency.size()));
+        LogTools.info("Training set has {0} classifications and {0} words", String.valueOf(classificationFrequency.size()), String.valueOf(getTrainingSetWordCount()));
 
         // Find probability of classifications
         for (Map.Entry<String, Integer> classificationWordFrequencyEntry : classificationFrequency.entrySet()) {
@@ -199,7 +140,7 @@ public class NaiveBayesClassifier extends BasicClassifier {
 
             final int wordCount = classificationWordFrequencyEntry.getValue();
 
-            final double probability = (double) wordCount / (double) totalCorpusWordCount;
+            final double probability = (double) wordCount / (double) getTrainingSetWordCount();
 
             probabilityOfClassification.put(classification, probability);
         }
@@ -234,7 +175,7 @@ public class NaiveBayesClassifier extends BasicClassifier {
         }
 
 
-        LogTools.info("Loaded {0} lines from training text", String.valueOf(trainingSetCount));
+        LogTools.info("Loaded {0} lines from training text", String.valueOf(trainingSet.size()));
 
     }
 
@@ -246,11 +187,4 @@ public class NaiveBayesClassifier extends BasicClassifier {
         return probabilityOfWordGivenClassification;
     }
 
-    public HashMap<String, Integer> getCorpusWordFrequency() {
-        return corpusWordFrequency;
-    }
-
-    public int getTotalCorpusWordCount() {
-        return totalCorpusWordCount;
-    }
 }

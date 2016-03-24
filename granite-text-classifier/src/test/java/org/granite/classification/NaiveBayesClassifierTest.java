@@ -8,6 +8,7 @@ import org.granite.configuration.ConfigTools;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.HashMap;
 
 public class NaiveBayesClassifierTest {
     private final ApplicationConfiguration configuration = ConfigTools.readConfiguration("", "classifier.properties", "local-classifier.properties");
@@ -28,7 +29,7 @@ public class NaiveBayesClassifierTest {
         for (TrainingText testingText : testingTextMap
                 .values()) {
 
-            final ImmutableMap<String, Double> classifications = classifier.classify(testingText.getText());
+            final ImmutableMap<String, HashMap<String, Double>> posteriorProbailities = classifier.findWordPosteriorProbabilities(testingText.getText());
 
             System.out.println("test");
         }

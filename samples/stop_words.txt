@@ -149,6 +149,7 @@ general
 generally
 get
 gets
+gift
 give
 given
 gives

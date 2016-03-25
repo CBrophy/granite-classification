@@ -6,6 +6,8 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.TreeMultimap;
 import com.google.common.io.Files;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +26,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -37,6 +40,7 @@ public abstract class BasicClassifier {
     private HashSet<String> stopWords = new HashSet<>();
     private HashSet<String> trainingSetStopWords = new HashSet<>();
     private TreeMap<String, Integer> trainingSetWordFrequencies = new TreeMap<>();
+    private TreeMap<String, String> wordToClassificationDirection = new TreeMap<>();
     private int trainingSetWordCount = 0;
 
     BasicClassifier() {
@@ -114,6 +118,10 @@ public abstract class BasicClassifier {
 
     public TreeMap<String, Integer> getTrainingSetWordFrequencies() {
         return trainingSetWordFrequencies;
+    }
+
+    public TreeMap<String, String> getWordToClassificationDirection() {
+        return wordToClassificationDirection;
     }
 
     private void filterStopWords(final List<String> words) {
@@ -209,98 +217,89 @@ public abstract class BasicClassifier {
         return builder.build();
     }
 
-    private void trainStopWords(final ImmutableMap<Integer, TrainingText> trainingSet){
+    private void trainStopWords(final ImmutableMap<Integer, TrainingText> trainingSet) {
         final Joiner csv = Joiner.on(',').skipNulls();
-        final TreeSet<String> highlyProbableWords = new TreeSet<>();
-        final TreeMap<Integer, Integer> wordProbabilityHistogram = new TreeMap<>();
 
-        final HashMap<String, Integer> initialWordFrequencies = new HashMap<>();
-        int initialTotalWordCount = 0;
+        final TreeMap<Integer, Integer> wordFrequencyHistogram = new TreeMap<>();
 
-        // The first pass counts the number of training lines the words arrive in
-        // And all
-        for (Map.Entry<Integer, TrainingText> trainingSetEntry : trainingSet.entrySet()) {
+        final HashMultimap<String, String> wordClassifications = HashMultimap.create();
 
-            final int lineNumber = trainingSetEntry.getKey();
+        final HashMap<String, HashMap<String, Integer>> wordClassificationTrainingCount = new HashMap<>();
 
-            final TrainingText trainingText = trainingSetEntry.getValue();
+        for (TrainingText trainingText : trainingSet
+                .values()) {
 
-            // The stop word list provides the first filtration
-            final HashMap<String, Integer> trainingLineWordFrequency = textToFilteredWords(trainingText.getText());
+            for (String classification : trainingText
+                    .getClassifications()) {
 
-            if (trainingLineWordFrequency.isEmpty()) {
-                LogTools.info("Training text on line {0} filtered entirely by known stop word list", String.valueOf(lineNumber));
-                continue;
-            }
+                final HashMap<String, Integer> words = textToFilteredWords(trainingText.getText());
 
-            for (String word : trainingLineWordFrequency.keySet()) {
+                for (String word : words
+                        .keySet()) {
 
-                final int lineWordfrequency = trainingLineWordFrequency.get(word);
+                    wordClassifications.put(word, classification);
 
-                final int currentTrainingSetWordFrequency = initialWordFrequencies.getOrDefault(word, 0);
+                    HashMap<String, Integer> classifications = wordClassificationTrainingCount.get(word);
 
-                initialWordFrequencies.put(word, currentTrainingSetWordFrequency + lineWordfrequency);
+                    if (classifications == null) {
+                        classifications = new HashMap<>();
+                        wordClassificationTrainingCount.put(word, classifications);
+                    }
 
-                initialTotalWordCount += lineWordfrequency;
+                    classifications.put(classification, classifications.getOrDefault(classification, 0) + 1);
+                }
 
             }
-
         }
 
-        final HashMap<String, Double> wordProbabilities = new HashMap<>();
-        double totalProbability = 0.0;
 
-        for (String word : initialWordFrequencies.keySet()) {
+        for (String word : wordClassifications.keySet()) {
 
-            final double wordProbability = (double) initialWordFrequencies.get(word) / (double) initialTotalWordCount;
 
-            wordProbabilities.put(word, wordProbability);
+            final int frequency = wordClassifications.get(word).size();
 
-            totalProbability += wordProbability;
-        }
+            wordFrequencyHistogram.put(frequency, wordFrequencyHistogram.getOrDefault(frequency, 0) + 1);
 
-        final double mean = totalProbability / (double) wordProbabilities.size();
+            // Arbitrarily decide that two or less is NOT indicative of noise
+            if (frequency == 1) continue;
 
-        double variance = 0.0;
+            final TreeMultimap<Integer, String> associatedClassifications = TreeMultimap
+                    .create(Ordering.natural().reverse(), Ordering.natural().reverse());
 
-        for (Double probability : wordProbabilities.values()) {
-            variance += Math.pow(mean - probability, 2);
-        }
+            wordClassificationTrainingCount
+                    .get(word)
+                    .entrySet()
+                    .forEach(classificationCountEntry -> associatedClassifications.put(classificationCountEntry.getValue(), classificationCountEntry.getKey()));
 
-        variance = variance / ((double) wordProbabilities.size() - 1.0);
+            final NavigableSet<String> highestFrequencyClassifications = associatedClassifications.get(
+                    associatedClassifications
+                            .keySet()
+                            .first());
 
-        final double standardDeviation = Math.sqrt(variance);
-
-        LogTools.info("Word probability mean: {0}, standard dev: {1}", String.valueOf(mean), String.valueOf(standardDeviation));
-
-        for (Map.Entry<String, Double> wordProbabilityEntry : wordProbabilities.entrySet()) {
-
-            final String word = wordProbabilityEntry.getKey();
-            final double wordProbability = wordProbabilityEntry.getValue();
-
-            double difference = mean - wordProbability;
-
-            int distanceFromMean = (int) (difference < 0.0 ?
-                    Math.ceil(difference / standardDeviation) :
-                    Math.floor(difference / standardDeviation));
-
-            if(distanceFromMean == 0){
-                getTrainingSetStopWords().add(word);
-                highlyProbableWords.add(word);
+            if (highestFrequencyClassifications.size() > 1) {
+                trainingSetStopWords.add(word);
+            } else {
+                wordToClassificationDirection.put(word, highestFrequencyClassifications.first());
             }
 
-            wordProbabilityHistogram.put(distanceFromMean,  wordProbabilityHistogram.getOrDefault(distanceFromMean, 0) + 1);
         }
 
-        LogTools.info("Histogram of word probability stdevs from the mean:");
+        LogTools.info("Histogram of word frequency in classification training rows");
 
-        wordProbabilityHistogram
+        wordFrequencyHistogram
                 .entrySet()
                 .stream()
                 .map(entry -> entry.getKey() + ":" + entry.getValue())
                 .forEach(System.out::println);
 
-        LogTools.info("{0} highly probable words in the training set add to stop words: {1}", String.valueOf(highlyProbableWords.size()), csv.join(highlyProbableWords));
+        LogTools.info("{0} words added to stop list that are equally likely to belong to multiple classes: {1}",
+                String.valueOf(trainingSetStopWords.size()),
+                csv.join(trainingSetStopWords)
+        );
+
+        LogTools.info("{0} words redirected to the classes with the highest training row frequency: {1}",
+                String.valueOf(wordToClassificationDirection.size()),
+                csv.join(wordToClassificationDirection.keySet()));
 
     }
 

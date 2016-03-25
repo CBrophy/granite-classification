@@ -29,7 +29,7 @@ public class NaiveBayesClassifierTest {
         for (TrainingText testingText : testingTextMap
                 .values()) {
 
-            final ImmutableMap<String, HashMap<String, Double>> posteriorProbailities = classifier.findWordPosteriorProbabilities(testingText.getText());
+            final ImmutableMap<String, Double> classifications = classifier.classify(testingText.getText());
 
             System.out.println("test");
         }

@@ -1,14 +1,17 @@
 package org.granite.classification;
 
 
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 
 import org.granite.base.StringTools;
 import org.granite.classification.model.TrainingText;
+import org.granite.classification.utils.TextUtils;
 import org.granite.log.LogTools;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -19,17 +22,48 @@ public class NaiveBayesClassifier extends BasicClassifier {
     private final HashMap<String, HashMap<String, Double>> probabilityOfWordGivenClassification = new HashMap<>();
 
     public ImmutableMap<String, Double> classify(final String text) {
-        if (StringTools.isNullOrEmpty(text)) return ImmutableMap.of();
 
-        final HashMap<String, Integer> allWords = textToFilteredWords(text);
-
-        if (allWords.isEmpty()) {
-            return ImmutableMap.of();
-        }
+        findWordPosteriorProbabilities(text);
 
         final HashMap<String, Double> result = new HashMap<>();
 
-        return ImmutableMap.copyOf(result);
+        findWordPosteriorProbabilities(text)
+                .values()
+                .forEach(classificationPosteriorMap -> {
+                    classificationPosteriorMap
+                            .entrySet()
+                            .forEach(entry -> {
+                                double existingMaxValue = result.getOrDefault(entry.getKey(), Double.MIN_VALUE);
+
+                                result.put(entry.getKey(), Math.max(existingMaxValue, entry.getValue()));
+                            });
+                });
+
+        final ImmutableMap.Builder<String, Double> builder = ImmutableMap.builder();
+
+        double total = 0.0;
+
+        for (Double posterior : result.values()) {
+            total += posterior;
+        }
+
+        final double mean = total / (double) result.size();
+
+        double variance = 0.0;
+
+        for (Double posterior : result.values()) {
+            variance += Math.pow(mean - posterior, 2) / ((double) result.size() - 1.0);
+        }
+
+        double standardDev = Math.sqrt(variance);
+
+        result
+                .entrySet()
+                .stream()
+                .filter(entry -> entry.getValue() > mean + standardDev)
+                .forEach(entry -> builder.put(entry.getKey(), entry.getValue()));
+
+        return builder.build();
     }
 
     public ImmutableMap<String, HashMap<String, Double>> findWordPosteriorProbabilities(final String text) {
@@ -91,89 +125,61 @@ public class NaiveBayesClassifier extends BasicClassifier {
         checkNotNull(trainingSet, "trainingSet");
         checkArgument(!trainingSet.isEmpty(), "trainingSet is empty");
 
-        final HashMap<String, HashMap<String, Integer>> wordClassificationFrequencyMap = new HashMap<>();
+        final HashMultimap<String, TrainingText> classificationTrainingText = HashMultimap.create();
 
-        final HashMap<String, Integer> classificationFrequency = new HashMap<>();
+        trainingSet
+                .values()
+                .forEach(trainingText -> {
+                    trainingText
+                            .getClassifications()
+                            .forEach(classification -> classificationTrainingText.put(classification, trainingText));
+                });
 
-        for (Map.Entry<Integer, TrainingText> trainingTextEntry : trainingSet.entrySet()) {
+        for (String classification : classificationTrainingText
+                .keySet()) {
 
-            final TrainingText trainingText = trainingTextEntry.getValue();
+            final Set<TrainingText> trainingTexts = classificationTrainingText.get(classification);
 
-            for (Map.Entry<String, Integer> wordFrequencyEntry : trainingText.getWordFrequencies().entrySet()) {
+            if (trainingTexts.size() == 1) {
+                LogTools.warn("Very few training text for classification: {0}", classification);
+            }
+
+            final double trainingTextCount = (double) trainingTexts.size();
+
+            probabilityOfClassification.put(classification, trainingTextCount / (double) trainingSet.size());
+
+            final HashMap<String, Integer> wordFrequency = new HashMap<>();
+
+            for (TrainingText trainingText : trainingTexts) {
+                TextUtils.updateFrequencyMap(trainingText.getWordFrequencies().keySet(), wordFrequency);
+            }
+
+            for (Map.Entry<String, Integer> wordFrequencyEntry : wordFrequency
+                    .entrySet()) {
 
                 final String word = wordFrequencyEntry.getKey();
-                final int frequency = wordFrequencyEntry.getValue();
 
-                // Increment this word's classifications' frequency by the number of times this word occurs
-                // int this training line
-                HashMap<String, Integer> wordClassificationFrequency = wordClassificationFrequencyMap.get(word);
+                final double frequency = (double) wordFrequencyEntry.getValue();
 
-                if (wordClassificationFrequency == null) {
-                    wordClassificationFrequency = new HashMap<>();
-                    wordClassificationFrequencyMap.put(word, wordClassificationFrequency);
+                final String directedClassification = getWordToClassificationDirection().get(word);
+
+                if (directedClassification != null && !directedClassification.equals(classification)) {
+                    // This word has a direction, do not add it to this classification unless it
+                    // it is the one being directed to
+                    continue;
                 }
 
-                for (String classification : trainingText
-                        .getClassifications()) {
-                    // Record the number of times this word appears for each of its classifications
-                    final int currentWordClassificationFrequency = wordClassificationFrequency.getOrDefault(classification, 0);
+                HashMap<String, Double> classificationMap = probabilityOfWordGivenClassification.get(word);
 
-                    wordClassificationFrequency.put(classification, currentWordClassificationFrequency + frequency);
-
-                    // Record the number of words in the corpus that represent this classification
-                    final int currentClassificationFrequency = classificationFrequency.getOrDefault(classification, 0);
-
-                    classificationFrequency.put(classification, currentClassificationFrequency + frequency);
-
+                if (classificationMap == null) {
+                    classificationMap = new HashMap<>();
+                    probabilityOfWordGivenClassification.put(word, classificationMap);
                 }
 
+                classificationMap.put(classification, frequency / trainingTextCount);
             }
 
         }
-
-        LogTools.info("Training set has {0} classifications and {0} words", String.valueOf(classificationFrequency.size()), String.valueOf(getTrainingSetWordCount()));
-
-        // Find probability of classifications
-        for (Map.Entry<String, Integer> classificationWordFrequencyEntry : classificationFrequency.entrySet()) {
-
-            final String classification = classificationWordFrequencyEntry.getKey();
-
-            final int wordCount = classificationWordFrequencyEntry.getValue();
-
-            final double probability = (double) wordCount / (double) getTrainingSetWordCount();
-
-            probabilityOfClassification.put(classification, probability);
-        }
-
-        //Find probability of words given classification
-
-        for (Map.Entry<String, HashMap<String, Integer>> wordClassificationFrequencyEntry : wordClassificationFrequencyMap.entrySet()) {
-
-            final String word = wordClassificationFrequencyEntry.getKey();
-
-            HashMap<String, Double> classificationProbabilityMap = probabilityOfWordGivenClassification.get(word);
-
-            if (classificationProbabilityMap == null) {
-                classificationProbabilityMap = new HashMap<>();
-                probabilityOfWordGivenClassification.put(word, classificationProbabilityMap);
-            }
-
-            for (Map.Entry<String, Integer> classificationWordCountEntry : wordClassificationFrequencyEntry.getValue().entrySet()) {
-
-                final String classification = classificationWordCountEntry.getKey();
-
-                final int wordCountInClassification = classificationWordCountEntry.getValue();
-
-                final int classificationTotalWordCount = classificationFrequency.get(classificationWordCountEntry.getKey());
-
-                final double probability = (double) wordCountInClassification / (double) classificationTotalWordCount;
-
-                classificationProbabilityMap.put(classification, probability);
-            }
-
-
-        }
-
 
         LogTools.info("Loaded {0} lines from training text", String.valueOf(trainingSet.size()));
 

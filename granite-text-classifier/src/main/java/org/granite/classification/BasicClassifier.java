@@ -1,8 +1,8 @@
 package org.granite.classification;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Splitter;
+import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
@@ -10,6 +10,7 @@ import com.google.common.io.Files;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.granite.classification.model.TrainingText;
+import org.granite.classification.utils.LuceneWordBagger;
 import org.granite.classification.utils.TextUtils;
 import org.granite.io.FileTools;
 import org.granite.log.LogTools;
@@ -17,9 +18,10 @@ import org.granite.log.LogTools;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -31,31 +33,13 @@ public abstract class BasicClassifier {
 
     private HashSet<String> stopWords = new HashSet<>();
     private TreeSet<TrainingText> trainingTexts = new TreeSet<>();
-    private TreeMap<String, Integer> trainingSetWordCounts = new TreeMap<>();
     private TreeMap<String, TreeMap<String, Integer>> trainingSetClassificationWordCounts = new TreeMap<>();
     private TreeMap<String, TreeMap<String, Integer>> trainingSetWordClassificationCounts = new TreeMap<>();
     private TreeMap<String, Integer> trainingSetClassificationTotalWordCounts = new TreeMap<>();
     private TreeMap<String, Integer> trainingSetClassificationCounts = new TreeMap<>();
-    private int trainingSetWordCount = 0;
     private int trainingSetCount = 0;
 
     BasicClassifier() {
-    }
-
-    private final Splitter whiteSpaceSplitter = Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().trimResults();
-
-    public ImmutableSet<String> textToFilteredWordBag(final String text) {
-        final List<String> wordList = new ArrayList<>(whiteSpaceSplitter
-                .splitToList(TextUtils.cleanText(text)));
-
-        filterStopWords(wordList);
-
-        if (wordList.isEmpty()) {
-            LogTools.info("No significant words in text: {0}", text);
-            return ImmutableSet.of();
-        }
-
-        return ImmutableSet.copyOf(wordList);
     }
 
     public static ImmutableMap<Integer, TrainingText> loadTrainingText(final File trainingTextFile) {
@@ -100,14 +84,6 @@ public abstract class BasicClassifier {
         return stopWords;
     }
 
-    public int getTrainingSetWordCount() {
-        return trainingSetWordCount;
-    }
-
-    public TreeMap<String, Integer> getTrainingSetWordCounts() {
-        return trainingSetWordCounts;
-    }
-
     public TreeMap<String, TreeMap<String, Integer>> getTrainingSetClassificationWordCounts() {
         return trainingSetClassificationWordCounts;
     }
@@ -132,20 +108,7 @@ public abstract class BasicClassifier {
         return trainingSetCount;
     }
 
-    private void filterStopWords(final List<String> words) {
-        final int startIndex = words.size() - 1;
-
-        for (int index = startIndex; index >= 0; index--) {
-            final String word = words.get(index);
-            if (stopWords.contains(word)) {
-                words.remove(index);
-            }
-        }
-    }
-
     private void loadStopWordFile(final File stopWordFile) {
-        stopWords.clear();
-
         if (stopWordFile == null) return;
 
         if (!FileTools.fileExistsAndCanRead(stopWordFile)) {
@@ -159,7 +122,7 @@ public abstract class BasicClassifier {
             for (String line : lines) {
                 final String trimmed = line.trim().toLowerCase();
 
-                if (trimmed.startsWith("#")) continue;
+                if (trimmed.startsWith("#") || trimmed.isEmpty()) continue;
 
                 stopWords.add(trimmed);
             }
@@ -181,48 +144,45 @@ public abstract class BasicClassifier {
         checkNotNull(trainingSet, "trainingSet");
         checkState(!trainingSet.isEmpty(), "trainingSet is empty");
 
-        restructureTrainingSet(trainingSet);
+        transformTrainingSet(trainingSet);
 
         checkState(!this.getTrainingTexts().isEmpty(), "No training set loaded after restructuring");
-        checkState(!this.getTrainingSetWordCounts().isEmpty(), "No words found in training set");
         checkState(!this.getTrainingSetClassificationCounts().isEmpty(), "No classifications found in training set");
         checkState(!this.getTrainingSetClassificationWordCounts().isEmpty(), "No classification word counts found in training set");
         checkState(!this.getTrainingSetWordClassificationCounts().isEmpty(), "No word classification counts found in training set");
         checkState(!this.getTrainingSetClassificationTotalWordCounts().isEmpty(), "No classification total word counts found in training set");
-        checkState(this.getTrainingSetWordCount() > 0, "Training set word count is zero");
         checkState(this.getTrainingSetCount() > 0, "Training set count is zero");
 
         train();
     }
 
-    private void restructureTrainingSet(final ImmutableMap<Integer, TrainingText> trainingSet) {
+    private void transformTrainingSet(final ImmutableMap<Integer, TrainingText> trainingSet) {
+        if (getStopWords().isEmpty()) {
+            LogTools.warn("Training without stop words!");
+        }
+
+        final Joiner csv = Joiner.on(',').skipNulls();
+
+        final LuceneWordBagger luceneWordBagger = new LuceneWordBagger(this.getStopWords());
+
         this.trainingSetCount = trainingSet.size();
 
         for (TrainingText trainingText : trainingSet.values()) {
 
-            final ImmutableSet<String> wordBag = textToFilteredWordBag(trainingText.getText());
+            final ImmutableSet<String> wordBag = luceneWordBagger.createWordBag(trainingText.getText());
 
             this.trainingTexts.add(trainingText);
 
             for (String word : wordBag) {
-
+                // No matter what, add it to the original set-row's word bag
                 trainingText.getWordBag().add(word);
-
-                TextUtils.updateFrequencyMap(word, this.trainingSetWordCounts, 1);
-
-                this.trainingSetWordCount++;
 
                 final TreeMap<String, Integer> classificationCounts = getNestedMap(word, this.trainingSetWordClassificationCounts);
 
                 for (String classification : trainingText.getClassifications()) {
 
+                    // Increment the classification counter for this word in the overall training set
                     TextUtils.updateFrequencyMap(classification, classificationCounts, 1);
-
-                    TextUtils.updateFrequencyMap(classification, this.trainingSetClassificationTotalWordCounts, 1);
-
-                    final TreeMap<String, Integer> wordCounts = getNestedMap(classification, this.trainingSetClassificationWordCounts);
-
-                    TextUtils.updateFrequencyMap(word, wordCounts, 1);
 
                 }
 
@@ -231,6 +191,65 @@ public abstract class BasicClassifier {
             trainingText
                     .getClassifications()
                     .forEach(classification -> TextUtils.updateFrequencyMap(classification, this.trainingSetClassificationCounts, 1));
+
+        }
+
+        // Look for words that only exist once in each classification and remove those
+        final HashSet<String> wordsToDiscard = new HashSet<>();
+
+        final HashMultimap<String, String> wordClassificationDiscards = HashMultimap.create();
+
+        for (Map.Entry<String, TreeMap<String, Integer>> wordEntry : this.trainingSetWordClassificationCounts.entrySet()) {
+
+            final String word = wordEntry.getKey();
+
+            wordEntry
+                    .getValue()
+                    .entrySet()
+                    .stream()
+                    .filter(categoryEntry -> categoryEntry.getValue() == 1)
+                    .forEach(entry -> wordClassificationDiscards.put(word, entry.getKey()));
+
+
+            final Set<String> classificationsToDiscard = wordClassificationDiscards.get(word);
+
+            if (classificationsToDiscard != null) {
+                classificationsToDiscard
+                        .forEach(wordEntry.getValue()::remove);
+            }
+
+            if (wordEntry.getValue().isEmpty())
+                wordsToDiscard.add(wordEntry.getKey());
+
+        }
+
+        wordsToDiscard
+                .forEach(this.trainingSetWordClassificationCounts::remove);
+
+        LogTools.info("{0} words discarded completely: {1}", String.valueOf(wordsToDiscard.size()), csv.join(wordsToDiscard));
+
+        for (String word : wordClassificationDiscards.keySet()) {
+            LogTools.info("Word {0} discarded from classifications: {1}", word, csv.join(wordClassificationDiscards.get(word)));
+        }
+
+
+        // Now populate the other statistics
+
+        for (Map.Entry<String, TreeMap<String, Integer>> wordEntry : this.trainingSetWordClassificationCounts.entrySet()) {
+            final String word = wordEntry.getKey();
+
+            for (Map.Entry<String, Integer> classificationEntry : wordEntry.getValue().entrySet()) {
+
+                final String classification = classificationEntry.getKey();
+
+                final int classificationWordCount = classificationEntry.getValue();
+
+                final TreeMap<String, Integer> wordCounts = getNestedMap(classification, this.trainingSetClassificationWordCounts);
+
+                TextUtils.updateFrequencyMap(word, wordCounts, classificationWordCount);
+
+                TextUtils.updateFrequencyMap(classification, this.trainingSetClassificationTotalWordCounts, classificationWordCount);
+            }
 
         }
 

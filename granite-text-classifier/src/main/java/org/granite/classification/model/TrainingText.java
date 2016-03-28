@@ -1,12 +1,11 @@
 package org.granite.classification.model;
 
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class TrainingText implements Comparable<TrainingText> {
     private int id;
     private TreeSet<String> classifications = new TreeSet<>();
-    private TreeMap<String, Integer> wordFrequencies = new TreeMap<>();
+    private TreeSet<String> wordBag = new TreeSet<>();
     private String text;
 
     TrainingText(){}
@@ -25,8 +24,8 @@ public class TrainingText implements Comparable<TrainingText> {
         return classifications;
     }
 
-    public TreeMap<String, Integer> getWordFrequencies() {
-        return wordFrequencies;
+    public TreeSet<String> getWordBag() {
+        return wordBag;
     }
 
     public String getText() {

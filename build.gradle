@@ -34,6 +34,8 @@ subprojects {
         compile 'javax.inject:javax.inject:1'
         compile 'com.fasterxml.jackson.core:jackson-core:2.7.0'
         compile 'com.fasterxml.jackson.core:jackson-databind:2.7.0'
+        compile 'org.apache.lucene:lucene-core:5.5.0'
+        compile 'org.apache.lucene:lucene-analyzers-common:5.5.0'
         testCompile 'junit:junit:4.12'
     }
 

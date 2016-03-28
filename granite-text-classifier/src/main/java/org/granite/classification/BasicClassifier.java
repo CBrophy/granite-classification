@@ -1,13 +1,10 @@
 package org.granite.classification;
 
 import com.google.common.base.CharMatcher;
-import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.TreeMultimap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,18 +13,13 @@ import org.granite.classification.model.TrainingText;
 import org.granite.classification.utils.TextUtils;
 import org.granite.io.FileTools;
 import org.granite.log.LogTools;
-import org.granite.math.MathTools;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.NavigableSet;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -38,17 +30,21 @@ import static com.google.common.base.Preconditions.checkState;
 public abstract class BasicClassifier {
 
     private HashSet<String> stopWords = new HashSet<>();
-    private HashSet<String> trainingSetStopWords = new HashSet<>();
-    private TreeMap<String, Integer> trainingSetWordFrequencies = new TreeMap<>();
-    private TreeMap<String, String> wordToClassificationDirection = new TreeMap<>();
+    private TreeSet<TrainingText> trainingTexts = new TreeSet<>();
+    private TreeMap<String, Integer> trainingSetWordCounts = new TreeMap<>();
+    private TreeMap<String, TreeMap<String, Integer>> trainingSetClassificationWordCounts = new TreeMap<>();
+    private TreeMap<String, TreeMap<String, Integer>> trainingSetWordClassificationCounts = new TreeMap<>();
+    private TreeMap<String, Integer> trainingSetClassificationTotalWordCounts = new TreeMap<>();
+    private TreeMap<String, Integer> trainingSetClassificationCounts = new TreeMap<>();
     private int trainingSetWordCount = 0;
+    private int trainingSetCount = 0;
 
     BasicClassifier() {
     }
 
     private final Splitter whiteSpaceSplitter = Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().trimResults();
 
-    public HashMap<String, Integer> textToFilteredWords(final String text) {
+    public ImmutableSet<String> textToFilteredWordBag(final String text) {
         final List<String> wordList = new ArrayList<>(whiteSpaceSplitter
                 .splitToList(TextUtils.cleanText(text)));
 
@@ -56,14 +52,10 @@ public abstract class BasicClassifier {
 
         if (wordList.isEmpty()) {
             LogTools.info("No significant words in text: {0}", text);
-            return new HashMap<>();
+            return ImmutableSet.of();
         }
 
-        final HashMap<String, Integer> allWords = new HashMap<>();
-
-        TextUtils.updateFrequencyMap(wordList, allWords);
-
-        return allWords;
+        return ImmutableSet.copyOf(wordList);
     }
 
     public static ImmutableMap<Integer, TrainingText> loadTrainingText(final File trainingTextFile) {
@@ -108,20 +100,36 @@ public abstract class BasicClassifier {
         return stopWords;
     }
 
-    public HashSet<String> getTrainingSetStopWords() {
-        return trainingSetStopWords;
-    }
-
     public int getTrainingSetWordCount() {
         return trainingSetWordCount;
     }
 
-    public TreeMap<String, Integer> getTrainingSetWordFrequencies() {
-        return trainingSetWordFrequencies;
+    public TreeMap<String, Integer> getTrainingSetWordCounts() {
+        return trainingSetWordCounts;
     }
 
-    public TreeMap<String, String> getWordToClassificationDirection() {
-        return wordToClassificationDirection;
+    public TreeMap<String, TreeMap<String, Integer>> getTrainingSetClassificationWordCounts() {
+        return trainingSetClassificationWordCounts;
+    }
+
+    public TreeMap<String, TreeMap<String, Integer>> getTrainingSetWordClassificationCounts() {
+        return trainingSetWordClassificationCounts;
+    }
+
+    public TreeMap<String, Integer> getTrainingSetClassificationCounts() {
+        return trainingSetClassificationCounts;
+    }
+
+    public TreeSet<TrainingText> getTrainingTexts() {
+        return trainingTexts;
+    }
+
+    public TreeMap<String, Integer> getTrainingSetClassificationTotalWordCounts() {
+        return trainingSetClassificationTotalWordCounts;
+    }
+
+    public int getTrainingSetCount() {
+        return trainingSetCount;
     }
 
     private void filterStopWords(final List<String> words) {
@@ -129,7 +137,7 @@ public abstract class BasicClassifier {
 
         for (int index = startIndex; index >= 0; index--) {
             final String word = words.get(index);
-            if (stopWords.contains(word) || trainingSetStopWords.contains(word)) {
+            if (stopWords.contains(word)) {
                 words.remove(index);
             }
         }
@@ -173,135 +181,74 @@ public abstract class BasicClassifier {
         checkNotNull(trainingSet, "trainingSet");
         checkState(!trainingSet.isEmpty(), "trainingSet is empty");
 
-        train(filterTrainingSet(trainingSet));
+        restructureTrainingSet(trainingSet);
+
+        checkState(!this.getTrainingTexts().isEmpty(), "No training set loaded after restructuring");
+        checkState(!this.getTrainingSetWordCounts().isEmpty(), "No words found in training set");
+        checkState(!this.getTrainingSetClassificationCounts().isEmpty(), "No classifications found in training set");
+        checkState(!this.getTrainingSetClassificationWordCounts().isEmpty(), "No classification word counts found in training set");
+        checkState(!this.getTrainingSetWordClassificationCounts().isEmpty(), "No word classification counts found in training set");
+        checkState(!this.getTrainingSetClassificationTotalWordCounts().isEmpty(), "No classification total word counts found in training set");
+        checkState(this.getTrainingSetWordCount() > 0, "Training set word count is zero");
+        checkState(this.getTrainingSetCount() > 0, "Training set count is zero");
+
+        train();
     }
 
-    protected ImmutableMap<Integer, TrainingText> filterTrainingSet(final ImmutableMap<Integer, TrainingText> trainingSet) {
+    private void restructureTrainingSet(final ImmutableMap<Integer, TrainingText> trainingSet) {
+        this.trainingSetCount = trainingSet.size();
 
-        trainStopWords(trainingSet);
+        for (TrainingText trainingText : trainingSet.values()) {
 
-        final ImmutableMap.Builder<Integer, TrainingText> builder = ImmutableMap.builder();
+            final ImmutableSet<String> wordBag = textToFilteredWordBag(trainingText.getText());
 
-        for (Map.Entry<Integer, TrainingText> trainingSetEntry : trainingSet.entrySet()) {
+            this.trainingTexts.add(trainingText);
 
-            final int lineNumber = trainingSetEntry.getKey();
+            for (String word : wordBag) {
 
-            final TrainingText trainingText = trainingSetEntry.getValue();
+                trainingText.getWordBag().add(word);
 
-            // The stop word list provides the first filtration
-            final HashMap<String, Integer> trainingLineWordFrequency = textToFilteredWords(trainingText.getText());
+                TextUtils.updateFrequencyMap(word, this.trainingSetWordCounts, 1);
 
-            if (trainingLineWordFrequency.isEmpty()) {
-                LogTools.info("Training text on line {0} filtered entirely by trained stop word list", String.valueOf(lineNumber));
-                continue;
-            }
+                this.trainingSetWordCount++;
 
-            for (Map.Entry<String, Integer> lineWordFrequencyEntry : trainingLineWordFrequency.entrySet()) {
+                final TreeMap<String, Integer> classificationCounts = getNestedMap(word, this.trainingSetWordClassificationCounts);
 
-                final String word = lineWordFrequencyEntry.getKey();
+                for (String classification : trainingText.getClassifications()) {
 
-                final int frequency = lineWordFrequencyEntry.getValue();
+                    TextUtils.updateFrequencyMap(classification, classificationCounts, 1);
 
-                trainingText.getWordFrequencies().put(word, frequency);
+                    TextUtils.updateFrequencyMap(classification, this.trainingSetClassificationTotalWordCounts, 1);
 
-                final int currentTrainingSetFrequency = trainingSetWordFrequencies.getOrDefault(word, 0);
+                    final TreeMap<String, Integer> wordCounts = getNestedMap(classification, this.trainingSetClassificationWordCounts);
 
-                trainingSetWordFrequencies.put(word, currentTrainingSetFrequency + frequency);
+                    TextUtils.updateFrequencyMap(word, wordCounts, 1);
 
-                trainingSetWordCount += frequency;
-            }
-
-            builder.put(lineNumber, trainingText);
-        }
-
-        return builder.build();
-    }
-
-    private void trainStopWords(final ImmutableMap<Integer, TrainingText> trainingSet) {
-        final Joiner csv = Joiner.on(',').skipNulls();
-
-        final TreeMap<Integer, Integer> wordFrequencyHistogram = new TreeMap<>();
-
-        final HashMultimap<String, String> wordClassifications = HashMultimap.create();
-
-        final HashMap<String, HashMap<String, Integer>> wordClassificationTrainingCount = new HashMap<>();
-
-        for (TrainingText trainingText : trainingSet
-                .values()) {
-
-            for (String classification : trainingText
-                    .getClassifications()) {
-
-                final HashMap<String, Integer> words = textToFilteredWords(trainingText.getText());
-
-                for (String word : words
-                        .keySet()) {
-
-                    wordClassifications.put(word, classification);
-
-                    HashMap<String, Integer> classifications = wordClassificationTrainingCount.get(word);
-
-                    if (classifications == null) {
-                        classifications = new HashMap<>();
-                        wordClassificationTrainingCount.put(word, classifications);
-                    }
-
-                    classifications.put(classification, classifications.getOrDefault(classification, 0) + 1);
                 }
 
             }
-        }
 
-
-        for (String word : wordClassifications.keySet()) {
-
-
-            final int frequency = wordClassifications.get(word).size();
-
-            wordFrequencyHistogram.put(frequency, wordFrequencyHistogram.getOrDefault(frequency, 0) + 1);
-
-            // Arbitrarily decide that two or less is NOT indicative of noise
-            if (frequency == 1) continue;
-
-            final TreeMultimap<Integer, String> associatedClassifications = TreeMultimap
-                    .create(Ordering.natural().reverse(), Ordering.natural().reverse());
-
-            wordClassificationTrainingCount
-                    .get(word)
-                    .entrySet()
-                    .forEach(classificationCountEntry -> associatedClassifications.put(classificationCountEntry.getValue(), classificationCountEntry.getKey()));
-
-            final NavigableSet<String> highestFrequencyClassifications = associatedClassifications.get(
-                    associatedClassifications
-                            .keySet()
-                            .first());
-
-            if (highestFrequencyClassifications.size() > 1) {
-                trainingSetStopWords.add(word);
-            } else {
-                wordToClassificationDirection.put(word, highestFrequencyClassifications.first());
-            }
+            trainingText
+                    .getClassifications()
+                    .forEach(classification -> TextUtils.updateFrequencyMap(classification, this.trainingSetClassificationCounts, 1));
 
         }
-
-        LogTools.info("Histogram of word frequency in classification training rows");
-
-        wordFrequencyHistogram
-                .entrySet()
-                .stream()
-                .map(entry -> entry.getKey() + ":" + entry.getValue())
-                .forEach(System.out::println);
-
-        LogTools.info("{0} words added to stop list that are equally likely to belong to multiple classes: {1}",
-                String.valueOf(trainingSetStopWords.size()),
-                csv.join(trainingSetStopWords)
-        );
-
-        LogTools.info("{0} words redirected to the classes with the highest training row frequency: {1}",
-                String.valueOf(wordToClassificationDirection.size()),
-                csv.join(wordToClassificationDirection.keySet()));
 
     }
 
-    public abstract void train(final ImmutableMap<Integer, TrainingText> trainingSet);
+    protected static <CK, NK, NV> TreeMap<NK, NV> getNestedMap(final CK key, final TreeMap<CK, TreeMap<NK, NV>> containerMap) {
+        checkNotNull(key, "key");
+        checkNotNull(containerMap, "containerMap");
+
+        TreeMap<NK, NV> nestedMap = containerMap.get(key);
+
+        if (nestedMap == null) {
+            nestedMap = new TreeMap<>();
+            containerMap.put(key, nestedMap);
+        }
+
+        return nestedMap;
+    }
+
+    public abstract void train();
 }

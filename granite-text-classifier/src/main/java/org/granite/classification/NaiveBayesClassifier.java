@@ -1,8 +1,8 @@
 package org.granite.classification;
 
 
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 import org.granite.base.StringTools;
 import org.granite.classification.model.TrainingText;
@@ -12,14 +12,14 @@ import org.granite.log.LogTools;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class NaiveBayesClassifier extends BasicClassifier {
 
-    private final HashMap<String, Double> probabilityOfClassification = new HashMap<>();
-    private final HashMap<String, HashMap<String, Double>> probabilityOfWordGivenClassification = new HashMap<>();
+    private final TreeMap<String, Double> probabilityOfClassification = new TreeMap<>();
+    private final TreeMap<String, TreeMap<String, Double>> probabilityOfWordGivenClassification = new TreeMap<>();
 
     public ImmutableMap<String, Double> classify(final String text) {
 
@@ -69,7 +69,7 @@ public class NaiveBayesClassifier extends BasicClassifier {
     public ImmutableMap<String, HashMap<String, Double>> findWordPosteriorProbabilities(final String text) {
         if (StringTools.isNullOrEmpty(text)) return ImmutableMap.of();
 
-        final HashMap<String, Integer> allWords = textToFilteredWords(text);
+        final ImmutableSet<String> allWords = textToFilteredWordBag(text);
 
         if (allWords.isEmpty()) {
             return ImmutableMap.of();
@@ -77,7 +77,7 @@ public class NaiveBayesClassifier extends BasicClassifier {
 
         HashMap<String, HashMap<String, Double>> result = new HashMap<>();
 
-        for (String word : allWords.keySet()) {
+        for (String word : allWords) {
 
             final HashMap<String, Double> classificationNumerators = findPriorTimesLikelihood(word);
 
@@ -96,7 +96,7 @@ public class NaiveBayesClassifier extends BasicClassifier {
     private HashMap<String, Double> findPriorTimesLikelihood(final String word) {
 
         // It may be an unknown word
-        final HashMap<String, Double> probabilityPerClassificationMap = probabilityOfWordGivenClassification.get(word);
+        final TreeMap<String, Double> probabilityPerClassificationMap = probabilityOfWordGivenClassification.get(word);
 
         final HashMap<String, Double> result = new HashMap<>();
 
@@ -119,78 +119,86 @@ public class NaiveBayesClassifier extends BasicClassifier {
         return result;
     }
 
+    private double findPrior(final String classification){
+        checkNotNull(classification, "classification");
+
+        return getProbabilityOfClassification().get(classification);
+    }
+
+    private double findLikelihood(final String word, final String classification){
+        final TreeMap<String, Double> classificationProbalities = this.getProbabilityOfWordGivenClassification().get(word);
+
+        final Double numerator = classificationProbalities.get(classification);
+
+        if(numerator == null) {
+            return 0.0; // No likelihood, zilch
+        }
+
+        if(classificationProbalities.size() == 1){
+            return numerator;
+        }
+
+        //Probabilities get very nasty at this point
+
+        for (Map.Entry<String, Double> entry : classificationProbalities.entrySet()) {
+            final String otherClassification = entry.getKey();
+            final double otherProbability = entry.getValue();
+
+            if(classificationProbalities.size() == 2){
+                //take a short cut!
+                return numerator / otherProbability;
+            }
+
+
+        }
+
+        return 0.0;
+
+    }
 
     @Override
-    public void train(ImmutableMap<Integer, TrainingText> trainingSet) {
-        checkNotNull(trainingSet, "trainingSet");
-        checkArgument(!trainingSet.isEmpty(), "trainingSet is empty");
+    public void train() {
 
-        final HashMultimap<String, TrainingText> classificationTrainingText = HashMultimap.create();
+        for (Map.Entry<String, Integer> entry : getTrainingSetClassificationCounts().entrySet()) {
+            final String classification = entry.getKey();
 
-        trainingSet
-                .values()
-                .forEach(trainingText -> {
-                    trainingText
-                            .getClassifications()
-                            .forEach(classification -> classificationTrainingText.put(classification, trainingText));
-                });
+            final int count = entry.getValue();
 
-        for (String classification : classificationTrainingText
-                .keySet()) {
+            final double probability = (double) count / (double) getTrainingSetCount();
 
-            final Set<TrainingText> trainingTexts = classificationTrainingText.get(classification);
+            LogTools.info("Probability of {0} is {1}", classification, String.valueOf(probability));
 
-            if (trainingTexts.size() == 1) {
-                LogTools.warn("Very few training text for classification: {0}", classification);
-            }
+            this.getProbabilityOfClassification().put(classification, probability);
+        }
 
-            final double trainingTextCount = (double) trainingTexts.size();
+        for (Map.Entry<String, TreeMap<String, Integer>> entry : getTrainingSetClassificationWordCounts().entrySet()) {
 
-            probabilityOfClassification.put(classification, trainingTextCount / (double) trainingSet.size());
+            final String classification = entry.getKey();
 
-            final HashMap<String, Integer> wordFrequency = new HashMap<>();
+            final TreeMap<String, Integer> classificationWordCounts = entry.getValue();
 
-            for (TrainingText trainingText : trainingTexts) {
-                TextUtils.updateFrequencyMap(trainingText.getWordFrequencies().keySet(), wordFrequency);
-            }
+            final int classificationTotalWordCount = getTrainingSetClassificationTotalWordCounts().get(classification);
 
-            for (Map.Entry<String, Integer> wordFrequencyEntry : wordFrequency
-                    .entrySet()) {
+            for (Map.Entry<String, Integer> wordEntry : classificationWordCounts.entrySet()) {
 
-                final String word = wordFrequencyEntry.getKey();
+                final String word = wordEntry.getKey();
 
-                final double frequency = (double) wordFrequencyEntry.getValue();
+                final int count = wordEntry.getValue();
 
-                final String directedClassification = getWordToClassificationDirection().get(word);
+                final double probability = (double) count / (double) classificationTotalWordCount;
 
-                if (directedClassification != null && !directedClassification.equals(classification)) {
-                    // This word has a direction, do not add it to this classification unless it
-                    // it is the one being directed to
-                    continue;
-                }
-
-                HashMap<String, Double> classificationMap = probabilityOfWordGivenClassification.get(word);
-
-                if (classificationMap == null) {
-                    classificationMap = new HashMap<>();
-                    probabilityOfWordGivenClassification.put(word, classificationMap);
-                }
-
-                classificationMap.put(classification, frequency / trainingTextCount);
+                getNestedMap(word, this.probabilityOfWordGivenClassification).put(word, probability);
             }
 
         }
 
-        LogTools.info("Loaded {0} lines from training text", String.valueOf(trainingSet.size()));
-
     }
 
-    public HashMap<String, Double> getProbabilityOfClassification() {
+    public TreeMap<String, Double> getProbabilityOfClassification() {
         return probabilityOfClassification;
     }
 
-    public HashMap<String, HashMap<String, Double>> getProbabilityOfWordGivenClassification() {
+    public TreeMap<String, TreeMap<String, Double>> getProbabilityOfWordGivenClassification() {
         return probabilityOfWordGivenClassification;
     }
-
 }

@@ -2,76 +2,39 @@ package org.granite.classification;
 
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.math.DoubleMath;
 
-import org.granite.classification.utils.TextUtils;
+import org.granite.classification.model.TrainingSet;
+import org.granite.classification.utils.MapUtils;
 import org.granite.log.LogTools;
+import org.granite.math.ProbabilityTools;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.Set;
+import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class NaiveBayesClassifier extends BasicClassifier {
+public class NaiveBayesClassifier extends WordBagClassifier {
 
-    private final TreeMap<String, Double> probabilityOfClassification = new TreeMap<>();
-    private final TreeMap<String, TreeMap<String, Double>> probabilityOfWordGivenClassification = new TreeMap<>();
+    private ImmutableMap<String, Double> classificationProbabilities = ImmutableMap.of();
+    private ImmutableMap<String, ImmutableMap<String, Double>> wordGivenClassificationProbabilities = ImmutableMap.of();
+    private ImmutableMap<String, ImmutableMap<String, Double>> wordClassificationBoosts = ImmutableMap.of();
 
-    public ImmutableMap<String, Double> classify(final ImmutableSet<String> wordBag) {
-
-        final HashMap<String, Double> result = new HashMap<>();
-
-        findWordPosteriorProbabilities(wordBag)
-                .values()
-                .forEach(classificationPosteriorMap -> {
-                    classificationPosteriorMap
-                            .entrySet()
-                            .forEach(entry -> {
-                                double existingMaxValue = result.getOrDefault(entry.getKey(), Double.MIN_VALUE);
-
-                                result.put(entry.getKey(), Math.max(existingMaxValue, entry.getValue()));
-                            });
-                });
-
-        final ImmutableMap.Builder<String, Double> builder = ImmutableMap.builder();
-
-        double total = 0.0;
-
-        for (Double posterior : result.values()) {
-            total += posterior;
-        }
-
-        final double mean = total / (double) result.size();
-
-        double variance = 0.0;
-
-        for (Double posterior : result.values()) {
-            variance += Math.pow(mean - posterior, 2) / ((double) result.size() - 1.0);
-        }
-
-        double standardDev = Math.sqrt(variance);
-
-        result
-                .entrySet()
-                .stream()
-                .filter(entry -> entry.getValue() > mean + standardDev)
-                .forEach(entry -> builder.put(entry.getKey(), entry.getValue()));
-
-        return builder.build();
+    public NaiveBayesClassifier(final TrainingSet trainingSet) {
+        super(trainingSet);
     }
 
-    public ImmutableMap<String, HashMap<String, Double>> findWordPosteriorProbabilities(final ImmutableSet<String> wordBag) {
+    public ImmutableMap<String, ImmutableMap<String, Double>> classify(final Set<String> wordBag) {
         checkNotNull(wordBag, "wordBag");
 
         if (wordBag.isEmpty()) {
             return ImmutableMap.of();
         }
 
-        HashMap<String, HashMap<String, Double>> result = new HashMap<>();
+        final HashMap<String, HashMap<String, Double>> result = new HashMap<>();
 
         for (String word : wordBag) {
 
@@ -82,24 +45,31 @@ public class NaiveBayesClassifier extends BasicClassifier {
                 continue;
             }
 
-            result.put(word, classificationNumerators);
+            // Turn the result into classification -> word:posterior
+            classificationNumerators
+                    .entrySet()
+                    .forEach(entry ->
+                            result
+                                    .computeIfAbsent(entry.getKey(), key -> new HashMap<>())
+                                    .put(word, entry.getValue())
+                    );
 
         }
 
-        return ImmutableMap.copyOf(result);
+        return MapUtils.buildImmutableCopy(result);
     }
 
     private HashMap<String, Double> findPriorTimesLikelihood(final String word) {
 
         // It may be an unknown word
-        final TreeMap<String, Double> probabilityPerClassificationMap = probabilityOfWordGivenClassification.get(word);
+        final ImmutableMap<String, Double> probabilityPerClassificationMap = getWordGivenClassificationProbabilities().get(word);
 
         final HashMap<String, Double> result = new HashMap<>();
 
         if (probabilityPerClassificationMap != null) {
 
             // Determine prior x likelihood for all known classifications
-            for (Map.Entry<String, Double> probabilityOfClassificationEntry : probabilityOfClassification.entrySet()) {
+            for (Map.Entry<String, Double> probabilityOfClassificationEntry : getClassificationProbabilities().entrySet()) {
 
                 final String classification = probabilityOfClassificationEntry.getKey();
 
@@ -111,26 +81,26 @@ public class NaiveBayesClassifier extends BasicClassifier {
             }
         }
 
-
         return result;
     }
 
-    private double findPrior(final String classification) {
-        checkNotNull(classification, "classification");
-
-        return getProbabilityOfClassification().get(classification);
-    }
-
     private double findLikelihood(final String word, final String classification) {
-        final TreeMap<String, Double> classificationProbalities = this.getProbabilityOfWordGivenClassification().get(word);
+        // Finding
+        // P(C1) / P(C2 u C3 u ...)
+        final ImmutableMap<String, Double> probabilityPerClassificationMap = getWordGivenClassificationProbabilities().get(word);
 
-        final Double numerator = classificationProbalities.get(classification);
+        final double boost = getWordClassificationBoosts()
+                .getOrDefault(word, ImmutableMap.of())
+                .getOrDefault(classification, 1.0);
 
-        if (numerator == null) {
-            return 0.0; // No likelihood, zilch
+        final double numerator = probabilityPerClassificationMap.getOrDefault(classification, 0.0) * boost;
+
+        if (DoubleMath.fuzzyEquals(numerator, 0.0, 0.0001)) {
+            return 0.0; // No likelihood
         }
 
-        if (classificationProbalities.size() == 1) {
+        // If this classification has the only probability, return the value
+        if (probabilityPerClassificationMap.size() == 1) {
             return numerator;
         }
 
@@ -138,14 +108,16 @@ public class NaiveBayesClassifier extends BasicClassifier {
 
         final ArrayList<Double> otherClassificationProbabilities = new ArrayList<>();
 
-        for (Map.Entry<String, Double> entry : classificationProbalities.entrySet()) {
+        for (Map.Entry<String, Double> entry : probabilityPerClassificationMap.entrySet()) {
             final String otherClassification = entry.getKey();
             final double otherProbability = entry.getValue();
 
+            // Do not count the numerator classification
             if (classification.equalsIgnoreCase(otherClassification)) continue;
 
-            if (classificationProbalities.size() == 2) {
-                //take a short cut!
+            if (probabilityPerClassificationMap.size() == 2) {
+                // take a short cut if there are only two,
+                // the numerator and the denominator
                 return numerator / otherProbability;
             }
 
@@ -153,79 +125,74 @@ public class NaiveBayesClassifier extends BasicClassifier {
 
         }
 
-        final double denominator = calculateProbabilityOfOtherClassifications(otherClassificationProbabilities);
+        final double denominator = ProbabilityTools.independentUnion(otherClassificationProbabilities);
 
-        return numerator / denominator;
+        return denominator > 0.0 ? numerator / denominator : numerator;
 
     }
 
-    public static double calculateProbabilityOfOtherClassifications(final List<Double> probabilities) {
-        double result = 0.0;
-        double correction = 0.0;
-        double all = 1.0;
+    public NaiveBayesClassifier train() {
 
-        for (int index = 0; index < probabilities.size(); index++) {
+        final HashMap<String, Double> classificationProbabilities = new HashMap<>();
 
-            final double probability = probabilities.get(index);
+        // First determine how probable each classification is from it's frequency in the training set
+        for (Map.Entry<String, Double> entry : getTrainingSet().getClassificationLineCounts().entrySet()) {
 
-            result += probability;
-
-            all *= probability;
-            // Handle double correction factors
-            for (int nextIndex = index + 1; nextIndex < probabilities.size(); nextIndex++) {
-                final double nextProbability = probabilities.get(nextIndex);
-
-                correction += (probability * nextProbability);
-            }
-        }
-
-
-        return result - correction + all;
-    }
-
-    @Override
-    public void train() {
-
-        for (Map.Entry<String, Integer> entry : getTrainingSetClassificationCounts().entrySet()) {
             final String classification = entry.getKey();
 
-            final int count = entry.getValue();
-
-            final double probability = (double) count / (double) getTrainingSetCount();
+            final double probability = entry.getValue() / getTrainingSet().getTrainingSetSize();
 
             LogTools.info("Probability of {0} is {1}", classification, String.valueOf(probability));
 
-            this.getProbabilityOfClassification().put(classification, probability);
+            classificationProbabilities.put(classification, probability);
         }
 
-        for (Map.Entry<String, TreeMap<String, Integer>> entry : getTrainingSetClassificationWordCounts().entrySet()) {
+        // Next, determine the probability of each word given a classification
+        final HashMap<String, HashMap<String, Double>> wordGivenClassificationProbabilities = new HashMap<>();
 
-            final String classification = entry.getKey();
+        for (Map.Entry<String, ImmutableMap<String, Double>> classificationEntry : getTrainingSet().getClassificationWordCounts().entrySet()) {
 
-            final TreeMap<String, Integer> classificationWordCounts = entry.getValue();
+            final String classification = classificationEntry.getKey();
 
-            final int classificationTotalWordCount = getTrainingSetClassificationTotalWordCounts().get(classification);
+            final ImmutableMap<String, Double> classificationWordCounts = classificationEntry.getValue();
 
-            for (Map.Entry<String, Integer> wordEntry : classificationWordCounts.entrySet()) {
+            final double classificationTotalWordCount = getTrainingSet().getClassificationTotalWordCounts().get(classification);
+
+            for (Map.Entry<String, Double> wordEntry : classificationWordCounts.entrySet()) {
 
                 final String word = wordEntry.getKey();
 
-                final int count = wordEntry.getValue();
+                final double probability = wordEntry.getValue() / classificationTotalWordCount;
 
-                final double probability = (double) count / (double) classificationTotalWordCount;
-
-                getNestedMap(word, this.probabilityOfWordGivenClassification).put(classification, probability);
+                wordGivenClassificationProbabilities
+                        .computeIfAbsent(word, key -> new HashMap<>())
+                        .put(classification, probability);
             }
 
         }
 
+        this.wordGivenClassificationProbabilities = MapUtils.buildImmutableCopy(wordGivenClassificationProbabilities);
+        this.classificationProbabilities = ImmutableMap.copyOf(classificationProbabilities);
+        return this;
     }
 
-    public TreeMap<String, Double> getProbabilityOfClassification() {
-        return probabilityOfClassification;
+    public NaiveBayesClassifier withBoost(final Function<WordBagClassifier, ImmutableMap<String, ImmutableMap<String, Double>>> boostFunction) {
+        checkNotNull(boostFunction, "boostFunction");
+
+        this.wordClassificationBoosts = boostFunction.apply(this);
+
+        return this;
     }
 
-    public TreeMap<String, TreeMap<String, Double>> getProbabilityOfWordGivenClassification() {
-        return probabilityOfWordGivenClassification;
+    public ImmutableMap<String, Double> getClassificationProbabilities() {
+        return classificationProbabilities;
+    }
+
+    public ImmutableMap<String, ImmutableMap<String, Double>> getWordGivenClassificationProbabilities() {
+        return wordGivenClassificationProbabilities;
+    }
+
+    public ImmutableMap<String, ImmutableMap<String, Double>> getWordClassificationBoosts() {
+        return wordClassificationBoosts;
     }
 }

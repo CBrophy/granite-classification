@@ -40,33 +40,6 @@ public class TextUtils {
                         .toLowerCase(), ' ').trim();
     }
 
-    public static void updateFrequencyMap(final String word, final Map<String, Integer> frequencyMap, final int increment) {
-        checkNotNull(word, "word");
-        checkNotNull(frequencyMap, "frequencyMap");
-
-        frequencyMap.put(word, frequencyMap.getOrDefault(word, 0) + increment);
-    }
-
-    public static void updateFrequencyMap(final Iterable<String> words, final Map<String, Integer> frequencyMap, final int increment) {
-        checkNotNull(words, "words");
-        checkNotNull(frequencyMap, "frequencyMap");
-
-        checkNotNull(words, "words");
-
-        words
-                .forEach(word -> updateFrequencyMap(word, frequencyMap, increment));
-    }
-
-    public static void updateFrequencyMap(final Map<String, Integer> sourceFrequencyMap, final Map<String, Integer> destinationFrequencyMap) {
-        checkNotNull(sourceFrequencyMap, "sourceFrequencyMap");
-        checkNotNull(destinationFrequencyMap, "destinationFrequencyMap");
-
-        sourceFrequencyMap
-                .entrySet()
-                .forEach(entry -> updateFrequencyMap(entry.getKey(), destinationFrequencyMap, entry.getValue()));
-
-    }
-
     public static double[] asciiPositionVector(final String word) {
         checkNotNull(word, "word");
 

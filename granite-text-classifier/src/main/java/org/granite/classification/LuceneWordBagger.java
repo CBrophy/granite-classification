@@ -1,4 +1,4 @@
-package org.granite.classification.utils;
+package org.granite.classification;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
@@ -8,27 +8,30 @@ import org.apache.lucene.analysis.en.PorterStemFilter;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.granite.base.StringTools;
+import org.granite.classification.model.WordBagger;
+import org.granite.classification.utils.TextUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Set;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 
-public class LuceneWordBagger {
+public class LuceneWordBagger extends WordBagger {
     private final EnglishAnalyzer englishAnalyzer;
 
-    public LuceneWordBagger() {
-        this.englishAnalyzer = new EnglishAnalyzer();
+    public LuceneWordBagger(final File stopWordFile){
+        this(loadStopWordFile(stopWordFile));
     }
 
-    public LuceneWordBagger(final Set<String> additionalStopWords) {
-        checkNotNull(additionalStopWords, "additionalStopWords");
-        this.englishAnalyzer = new EnglishAnalyzer(new CharArraySet(additionalStopWords, true));
+    public LuceneWordBagger(final Iterable<String> additionalStopWords) {
+        super(additionalStopWords);
+
+        this.englishAnalyzer = new EnglishAnalyzer(new CharArraySet(getStopWords(), true));
     }
 
-    public ImmutableSet<String> createWordBag(final String text) {
-        if(StringTools.isNullOrEmpty(text)) return ImmutableSet.of();
+    @Override
+    public ImmutableSet<String> generateWordBag(String text) {
+        if (StringTools.isNullOrEmpty(text)) return ImmutableSet.of();
 
         final HashSet<String> result = new HashSet<>();
 

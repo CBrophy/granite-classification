@@ -26,7 +26,7 @@ public class NaiveBayesClassifierTest {
 
         final LuceneWordBagger luceneWordBagger = new LuceneWordBagger(stopWordFile);
 
-        final TrainingSet trainingSet = new TrainingSet(trainingFile, luceneWordBagger,0.01);
+        final TrainingSet trainingSet = new TrainingSet(trainingFile, luceneWordBagger, 2);
 
         final EnsemblingMethods.StandardDeviationEnsembler ensembler = new EnsemblingMethods.StandardDeviationEnsembler(1.0);
 

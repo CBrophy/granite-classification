@@ -26,7 +26,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 public class TrainingSet {
     private final ImmutableMap<Integer, TrainingText> trainingTexts;
-    private final double minimumProbability;
+    private final int minimumFrequency;
     private ImmutableMap<String, Double> classificationLineCounts;
     private ImmutableMap<String, ImmutableMap<String, Double>> wordClassificationCounts;
     private ImmutableMap<String, ImmutableMap<String, Double>> classificationWordCounts;
@@ -38,11 +38,11 @@ public class TrainingSet {
 
     public TrainingSet(final File trainingTextFile,
                        final WordBagger wordBagger,
-                       final double minimumProbability) {
-        this(loadTrainingText(trainingTextFile, wordBagger), wordBagger, minimumProbability);
+                       final int minimumFrequency) {
+        this(loadTrainingText(trainingTextFile, wordBagger), wordBagger, minimumFrequency);
     }
 
-    public TrainingSet(final ImmutableMap<Integer, TrainingText> trainingTexts, final WordBagger wordBagger, final double minimumProbability) {
+    public TrainingSet(final ImmutableMap<Integer, TrainingText> trainingTexts, final WordBagger wordBagger, final int minimumFrequency) {
         this.trainingTexts = checkNotNull(trainingTexts, "trainingTexts");
         this.wordBagger = checkNotNull(wordBagger, "wordBagger");
 
@@ -50,7 +50,7 @@ public class TrainingSet {
 
         this.trainingSetSize = (double) trainingTexts.size();
 
-        this.minimumProbability = minimumProbability;
+        this.minimumFrequency = minimumFrequency;
 
         generateTrainingTextStats();
 
@@ -117,14 +117,9 @@ public class TrainingSet {
 
                 final String classification = classificationEntry.getKey();
 
-                final double wordCount = classificationEntry.getValue();
-
-                final double classificationWordCount = classificationTotalWordCounts.get(classification);
-
-                final double probability = wordCount / classificationWordCount;
-
-                if (probability < minimumProbability)
+                if (classificationEntry.getValue() < minimumFrequency) {
                     wordClassificationFilters.put(word, classification);
+                }
             }
 
             // If the word is filtered from all classifications, add it to the whole word filter
@@ -134,7 +129,9 @@ public class TrainingSet {
 
         }
 
-        LogTools.info("Filtering {0} due to too low probability in all classifications", String.valueOf(wordFilter.size()));
+        LogTools.info("Filtering {0} words from specific classifications due to too low frequency", String.valueOf(wordClassificationFilters.size()));
+
+        LogTools.info("Filtering {0} from all classifications due to too low frequency", String.valueOf(wordFilter.size()));
 
         // Third pass applies the word filters and computes the final frequencies
 
@@ -232,8 +229,8 @@ public class TrainingSet {
         return wordBagger;
     }
 
-    public double getMinimumProbability() {
-        return minimumProbability;
+    public double getMinimumFrequency() {
+        return minimumFrequency;
     }
 
     public static ImmutableMap<Integer, TrainingText> loadTrainingText(final File trainingTextFile,

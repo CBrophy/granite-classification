@@ -3,15 +3,13 @@ package org.granite.classification;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import org.granite.classification.model.EnsemblingMethods;
-import org.granite.classification.model.TrainingSet;
+import org.granite.classification.model.ClassificationScore;
 import org.granite.classification.model.TrainingText;
 import org.granite.configuration.ApplicationConfiguration;
 import org.granite.configuration.ConfigTools;
 import org.junit.Test;
 
 import java.io.File;
-import java.util.TreeMap;
 
 import static org.junit.Assert.assertEquals;
 
@@ -26,21 +24,22 @@ public class NaiveBayesClassifierTest {
 
         final LuceneWordBagger luceneWordBagger = new LuceneWordBagger(stopWordFile);
 
-        final TrainingSet trainingSet = new TrainingSet(trainingFile, luceneWordBagger, 2);
+        final TrainingSetFactory trainingSetFactory = new TrainingSetFactory(trainingFile, luceneWordBagger)
+                .withTrainingSetFilter(new WordFrequencyTrainingSetFilter(2));
 
-        final EnsemblingMethods.StandardDeviationEnsembler ensembler = new EnsemblingMethods.StandardDeviationEnsembler(1.0);
+        final WordBagClassifier naiveBayesClassifier = new NaiveBayesClassifier(luceneWordBagger)
+                .withScoreFilter(new StandardDeviationScoreFilter<>(1.1))
+                .withContributorScoreFilter(new StandardDeviationScoreFilter<>(-0.2))
+                .withScoreEnsembler(new MaxValueScoreEnsembler());
 
-        final NaiveBayesClassifier classifier = new NaiveBayesClassifier(trainingSet).train();
+        naiveBayesClassifier.train(trainingSetFactory.createTrainingSet());
 
-        final ImmutableMap<Integer, TrainingText> testingTextMap = TrainingSet.loadTrainingText(testingFile, luceneWordBagger);
+        final ImmutableMap<Integer, TrainingText> testingTextMap = TrainingSetFactory.loadTrainingText(testingFile, luceneWordBagger);
 
         for (TrainingText testingText : testingTextMap
                 .values()) {
 
-            final ImmutableMap<String, ImmutableMap<String, Double>> posteriors = classifier.classify(testingText.getWordBag());
-
-            final ImmutableMap<String, Double> classifications =
-                    ensembler.apply(posteriors);
+            ImmutableSet<ClassificationScore> classificationScores = naiveBayesClassifier.classify(testingText.getWordBag());
 
             System.out.println("test");
         }

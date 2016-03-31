@@ -2,9 +2,12 @@ package org.granite.classification;
 
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.math.DoubleMath;
 
+import org.granite.classification.model.ClassificationScore;
 import org.granite.classification.model.TrainingSet;
+import org.granite.classification.model.WordBagger;
 import org.granite.classification.utils.MapUtils;
 import org.granite.log.LogTools;
 import org.granite.math.ProbabilityTools;
@@ -13,25 +16,25 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class NaiveBayesClassifier extends WordBagClassifier {
 
     private ImmutableMap<String, Double> classificationProbabilities = ImmutableMap.of();
-    private ImmutableMap<String, ImmutableMap<String, Double>> wordGivenClassificationProbabilities = ImmutableMap.of();
-    private ImmutableMap<String, ImmutableMap<String, Double>> wordClassificationBoosts = ImmutableMap.of();
 
-    public NaiveBayesClassifier(final TrainingSet trainingSet) {
-        super(trainingSet);
+    private ImmutableMap<String, Map<String, Double>> wordGivenClassificationProbabilities = ImmutableMap.of();
+
+    public NaiveBayesClassifier(final WordBagger wordBagger) {
+        super(wordBagger);
     }
 
-    public ImmutableMap<String, ImmutableMap<String, Double>> classify(final Set<String> wordBag) {
+    @Override
+    protected ImmutableSet<ClassificationScore> doClassify(final Set<String> wordBag) {
         checkNotNull(wordBag, "wordBag");
 
         if (wordBag.isEmpty()) {
-            return ImmutableMap.of();
+            return ImmutableSet.of();
         }
 
         final HashMap<String, HashMap<String, Double>> result = new HashMap<>();
@@ -56,13 +59,13 @@ public class NaiveBayesClassifier extends WordBagClassifier {
 
         }
 
-        return MapUtils.buildImmutableCopy(result);
+        return convertHashMap(result);
     }
 
     private HashMap<String, Double> findPriorTimesLikelihood(final String word) {
 
         // It may be an unknown word
-        final ImmutableMap<String, Double> probabilityPerClassificationMap = getWordGivenClassificationProbabilities().get(word);
+        final Map<String, Double> probabilityPerClassificationMap = getWordGivenClassificationProbabilities().get(word);
 
         final HashMap<String, Double> result = new HashMap<>();
 
@@ -87,13 +90,9 @@ public class NaiveBayesClassifier extends WordBagClassifier {
     private double findLikelihood(final String word, final String classification) {
         // Finding
         // P(C1) / P(C2 u C3 u ...)
-        final ImmutableMap<String, Double> probabilityPerClassificationMap = getWordGivenClassificationProbabilities().get(word);
+        final Map<String, Double> probabilityPerClassificationMap = getWordGivenClassificationProbabilities().get(word);
 
-        final double boost = getWordClassificationBoosts()
-                .getOrDefault(word, ImmutableMap.of())
-                .getOrDefault(classification, 1.0);
-
-        final double numerator = probabilityPerClassificationMap.getOrDefault(classification, 0.0) * boost;
+        final double numerator = probabilityPerClassificationMap.getOrDefault(classification, 0.0);
 
         if (DoubleMath.fuzzyEquals(numerator, 0.0, 0.0001)) {
             return 0.0; // No likelihood
@@ -131,16 +130,18 @@ public class NaiveBayesClassifier extends WordBagClassifier {
 
     }
 
-    public NaiveBayesClassifier train() {
+    @Override
+    public void train(final TrainingSet trainingSet) {
+        checkNotNull(trainingSet, "trainingSet");
 
         final HashMap<String, Double> classificationProbabilities = new HashMap<>();
 
         // First determine how probable each classification is from it's frequency in the training set
-        for (Map.Entry<String, Double> entry : getTrainingSet().getClassificationLineCounts().entrySet()) {
+        for (Map.Entry<String, Double> entry : trainingSet.getClassificationLineCounts().entrySet()) {
 
             final String classification = entry.getKey();
 
-            final double probability = entry.getValue() / getTrainingSet().getTrainingSetSize();
+            final double probability = entry.getValue() / trainingSet.getTrainingSetSize();
 
             LogTools.info("Probability of {0} is {1}", classification, String.valueOf(probability));
 
@@ -148,15 +149,15 @@ public class NaiveBayesClassifier extends WordBagClassifier {
         }
 
         // Next, determine the probability of each word given a classification
-        final HashMap<String, HashMap<String, Double>> wordGivenClassificationProbabilities = new HashMap<>();
+        final Map<String, Map<String, Double>> wordGivenClassificationProbabilities = new HashMap<>();
 
-        for (Map.Entry<String, ImmutableMap<String, Double>> classificationEntry : getTrainingSet().getClassificationWordCounts().entrySet()) {
+        for (Map.Entry<String, Map<String, Double>> classificationEntry : trainingSet.getClassificationWordCounts().entrySet()) {
 
             final String classification = classificationEntry.getKey();
 
-            final ImmutableMap<String, Double> classificationWordCounts = classificationEntry.getValue();
+            final Map<String, Double> classificationWordCounts = classificationEntry.getValue();
 
-            final double classificationTotalWordCount = getTrainingSet().getClassificationTotalWordCounts().get(classification);
+            final double classificationTotalWordCount = trainingSet.getClassificationTotalWordCounts().get(classification);
 
             for (Map.Entry<String, Double> wordEntry : classificationWordCounts.entrySet()) {
 
@@ -173,26 +174,27 @@ public class NaiveBayesClassifier extends WordBagClassifier {
 
         this.wordGivenClassificationProbabilities = MapUtils.buildImmutableCopy(wordGivenClassificationProbabilities);
         this.classificationProbabilities = ImmutableMap.copyOf(classificationProbabilities);
-        return this;
     }
 
-    public NaiveBayesClassifier withBoost(final Function<WordBagClassifier, ImmutableMap<String, ImmutableMap<String, Double>>> boostFunction) {
-        checkNotNull(boostFunction, "boostFunction");
+    @Override
+    public Set<String> getClassifications() {
+        return getClassificationProbabilities().keySet();
+    }
 
-        this.wordClassificationBoosts = boostFunction.apply(this);
-
-        return this;
+    @Override
+    public double getMaxClassificationScore(final String classification) {
+        checkNotNull(classification, "classification");
+        // The highest score in naive bayes is the probability of the classification itself
+        // P(Class) * L(Word:Class) = P(Class:Word)
+        return getClassificationProbabilities().getOrDefault(classification, 0.0);
     }
 
     public ImmutableMap<String, Double> getClassificationProbabilities() {
         return classificationProbabilities;
     }
 
-    public ImmutableMap<String, ImmutableMap<String, Double>> getWordGivenClassificationProbabilities() {
+    public ImmutableMap<String, Map<String, Double>> getWordGivenClassificationProbabilities() {
         return wordGivenClassificationProbabilities;
     }
 
-    public ImmutableMap<String, ImmutableMap<String, Double>> getWordClassificationBoosts() {
-        return wordClassificationBoosts;
-    }
 }

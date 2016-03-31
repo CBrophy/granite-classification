@@ -4,12 +4,16 @@ import com.google.common.collect.ComparisonChain;
 
 import org.granite.base.StringTools;
 
+import java.io.Serializable;
+
 import static com.google.common.base.Preconditions.checkArgument;
 
-public class StringScore implements Comparable<StringScore> {
+public class StringScore implements Comparable<StringScore>, Serializable {
 
-    private final String key;
+    private String key;
     private double score;
+
+    StringScore(){}
 
     public StringScore(final String key) {
         checkArgument(!StringTools.isNullOrEmpty(key), "key is null or empty");

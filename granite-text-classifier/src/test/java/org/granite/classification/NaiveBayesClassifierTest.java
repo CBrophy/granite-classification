@@ -28,11 +28,14 @@ public class NaiveBayesClassifierTest {
                 .withTrainingSetFilter(new WordFrequencyTrainingSetFilter(2));
 
         final WordBagClassifier naiveBayesClassifier = new NaiveBayesClassifier(luceneWordBagger)
-                .withScoreFilter(new StandardDeviationScoreFilter<>(1.1))
+                .withScoreFilter(new StandardDeviationScoreFilter<>(0.0))
                 .withContributorScoreFilter(new StandardDeviationScoreFilter<>(-0.2))
                 .withScoreEnsembler(new MaxValueScoreEnsembler());
 
-        naiveBayesClassifier.train(trainingSetFactory.createTrainingSet());
+        final IncrementalBooster incrementalBooster = new IncrementalBooster(TrainingSetFactory.loadTrainingText(trainingFile, luceneWordBagger));
+
+        incrementalBooster.trainWithBoosting(naiveBayesClassifier, trainingSetFactory.createTrainingSet());
+
 
         final ImmutableMap<Integer, TrainingText> testingTextMap = TrainingSetFactory.loadTrainingText(testingFile, luceneWordBagger);
 

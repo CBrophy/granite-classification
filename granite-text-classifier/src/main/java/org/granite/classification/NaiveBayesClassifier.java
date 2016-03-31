@@ -143,8 +143,6 @@ public class NaiveBayesClassifier extends WordBagClassifier {
 
             final double probability = entry.getValue() / trainingSet.getTrainingSetSize();
 
-            LogTools.info("Probability of {0} is {1}", classification, String.valueOf(probability));
-
             classificationProbabilities.put(classification, probability);
         }
 

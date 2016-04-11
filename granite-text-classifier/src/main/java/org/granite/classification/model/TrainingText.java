@@ -1,7 +1,10 @@
 package org.granite.classification.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.TreeSet;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TrainingText implements Comparable<TrainingText> {
     private int id;
     private TreeSet<String> classifications = new TreeSet<>();

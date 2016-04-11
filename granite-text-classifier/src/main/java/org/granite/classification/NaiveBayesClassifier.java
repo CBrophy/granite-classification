@@ -155,6 +155,10 @@ public class NaiveBayesClassifier extends WordBagClassifier {
 
             final Map<String, Double> classificationWordCounts = classificationEntry.getValue();
 
+            if(classificationWordCounts.isEmpty()) {
+                continue;
+            }
+
             final double classificationTotalWordCount = trainingSet.getClassificationTotalWordCounts().get(classification);
 
             for (Map.Entry<String, Double> wordEntry : classificationWordCounts.entrySet()) {

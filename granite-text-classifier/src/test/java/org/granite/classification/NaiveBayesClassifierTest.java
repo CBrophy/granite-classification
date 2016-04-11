@@ -7,6 +7,7 @@ import org.granite.classification.model.ClassificationScore;
 import org.granite.classification.model.TrainingText;
 import org.granite.configuration.ApplicationConfiguration;
 import org.granite.configuration.ConfigTools;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -17,6 +18,7 @@ public class NaiveBayesClassifierTest {
     private final ApplicationConfiguration configuration = ConfigTools.readConfiguration("", "classifier.properties", "local-classifier.properties");
 
     @Test
+    @Ignore
     public void testTraining() {
         final File stopWordFile = new File(configuration.getString("classifier.stop-words-set"));
         final File trainingFile = new File(configuration.getString("classifier.training-set"));
@@ -35,15 +37,15 @@ public class NaiveBayesClassifierTest {
         naiveBayesClassifier
                 .train(trainingSetFactory.createTrainingSet());
 
-        final ImmutableMap<Integer, TrainingText> testingTextMap = TrainingSetFactory.loadTrainingText(testingFile, luceneWordBagger);
-
-        for (TrainingText testingText : testingTextMap
-                .values()) {
-
-            ImmutableSet<ClassificationScore> classificationScores = naiveBayesClassifier.classify(testingText.getWordBag());
-
-            System.out.println("test");
-        }
+//        final ImmutableMap<Integer, TrainingText> testingTextMap = TrainingSetFactory.loadTrainingText(testingFile, luceneWordBagger);
+//
+//        for (TrainingText testingText : testingTextMap
+//                .values()) {
+//
+//            ImmutableSet<ClassificationScore> classificationScores = naiveBayesClassifier.classify(testingText.getWordBag());
+//
+//            System.out.println("test");
+//        }
 
     }
 

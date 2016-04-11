@@ -22,6 +22,8 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -120,6 +122,16 @@ public class TrainingSetFactory {
                 .values()) {
             trainingSetWordCount += count;
         }
+
+        // The computeIfAbsent may have left empty maps behind
+        final Set<String> filteredClassifications = classificationWordCounts
+                .keySet()
+                .stream()
+                .filter(classification -> classificationWordCounts.get(classification) == null || classificationWordCounts.get(classification).isEmpty())
+                .collect(Collectors.toSet());
+
+        filteredClassifications
+                .forEach(classificationWordCounts::remove);
 
         final Sets.SetView<String> classificationsFilteredEntirely = Sets.difference(classificationLineCounts.keySet(), classificationTotalWordCounts.keySet());
 

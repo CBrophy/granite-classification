@@ -123,7 +123,9 @@ public class TrainingSetFactory {
 
         final Sets.SetView<String> classificationsFilteredEntirely = Sets.difference(classificationLineCounts.keySet(), classificationTotalWordCounts.keySet());
 
-        checkState(classificationsFilteredEntirely.isEmpty() , "Classifications have been filtered due to no frequent words: %s", Joiner.on(',').join(classificationsFilteredEntirely));
+        if(!classificationsFilteredEntirely.isEmpty()){
+            LogTools.warn("Classifications have been filtered due to no frequent words: {0}", Joiner.on(',').join(classificationsFilteredEntirely));
+        }
 
         return new ImmutableTrainingSet(
                 classificationLineCounts,

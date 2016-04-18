@@ -32,15 +32,18 @@ import static com.google.common.base.Preconditions.checkState;
 public class TrainingSetFactory {
     private WordBagger wordBagger;
     private TrainingSetFilter trainingSetFilter;
-    private final File trainingTextFile;
+    private final ImmutableMap<Integer, TrainingText> trainingTexts;
 
-    public TrainingSetFactory(final File trainingTextFile, final WordBagger wordBagger) {
-        this.trainingTextFile = checkNotNull(trainingTextFile, "trainingTextFile");
+    public TrainingSetFactory(final ImmutableMap<Integer, TrainingText> trainingTexts, final WordBagger wordBagger) {
+        this.trainingTexts = checkNotNull(trainingTexts, "trainingTexts");
         this.wordBagger = checkNotNull(wordBagger, "wordBagger");
     }
 
+    public TrainingSetFactory(final File trainingTextFile, final WordBagger wordBagger) {
+        this(loadTrainingText(checkNotNull(trainingTextFile, "trainingTextFile"), wordBagger), wordBagger);
+    }
+
     public ImmutableTrainingSet createTrainingSet(){
-        final ImmutableMap<Integer, TrainingText> trainingTexts = loadTrainingText(trainingTextFile, wordBagger);
         checkNotNull(trainingTexts, "trainingTexts");
         checkArgument(trainingTexts.size() > 0, "trainingTexts map is empty");
 
@@ -159,8 +162,8 @@ public class TrainingSetFactory {
         return trainingSetFilter;
     }
 
-    public File getTrainingTextFile() {
-        return trainingTextFile;
+    public ImmutableMap<Integer, TrainingText> getTrainingTexts() {
+        return trainingTexts;
     }
 
     public TrainingSetFactory withWordBagger(final WordBagger wordBagger) {

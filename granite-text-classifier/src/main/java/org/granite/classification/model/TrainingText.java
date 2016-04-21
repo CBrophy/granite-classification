@@ -13,9 +13,8 @@ public class TrainingText implements Comparable<TrainingText> {
 
     TrainingText(){}
 
-    public TrainingText(final int id, final TreeSet<String> classifications, final String text) {
+    public TrainingText(final int id, final String text) {
         this.id = id;
-        this.classifications = classifications;
         this.text = text;
     }
 

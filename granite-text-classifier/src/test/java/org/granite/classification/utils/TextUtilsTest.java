@@ -19,6 +19,9 @@ public class TextUtilsTest {
         assertEquals(vector[TextUtils.asciiToInt('e')], 7.0, 0.0001);
         assertEquals(vector[TextUtils.asciiToInt('d')], 8.0, 0.0001);
 
+        double[] vector2 = TextUtils.asciiPositionVector("8x11");
+
+        assertEquals(vector2[TextUtils.asciiToInt('x')], 1.0, 0.0001);
     }
 
     @Test

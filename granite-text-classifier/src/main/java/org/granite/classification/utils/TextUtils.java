@@ -44,9 +44,10 @@ public class TextUtils {
         checkNotNull(word, "word");
 
         final double[] result = new double[26];
-        final char[] chars = word.toCharArray();
+        final char[] chars = cleanText(word).toCharArray();
 
-        for (int index = 0; index < word.toCharArray().length; index++) {
+        for (int index = 0; index < chars.length; index++) {
+
             int currentChar = asciiToInt(chars[index]);
 
             if (result[currentChar] > 0.0) {
@@ -65,9 +66,9 @@ public class TextUtils {
 
         final double[] result = new double[26];
 
-        final char[] chars = word.toCharArray();
+        final char[] chars = cleanText(word).toCharArray();
 
-        for (int index = 0; index < word.toCharArray().length; index++) {
+        for (int index = 0; index < chars.length; index++) {
             int currentChar = asciiToInt(chars[index]);
             result[currentChar]++;
         }

@@ -44,11 +44,14 @@ public class TextUtils {
         checkNotNull(word, "word");
 
         final double[] result = new double[26];
+
         final char[] chars = cleanText(word).toCharArray();
 
         for (int index = 0; index < chars.length; index++) {
 
             int currentChar = asciiToInt(chars[index]);
+
+            checkArgument(currentChar >= 0, "Word %s contains a non-ascii character", word);
 
             if (result[currentChar] > 0.0) {
                 continue;
@@ -69,7 +72,11 @@ public class TextUtils {
         final char[] chars = cleanText(word).toCharArray();
 
         for (int index = 0; index < chars.length; index++) {
+
             int currentChar = asciiToInt(chars[index]);
+
+            checkArgument(currentChar >= 0, "Word %s contains a non-ascii character", word);
+
             result[currentChar]++;
         }
 

@@ -22,6 +22,14 @@ public class TextUtilsTest {
         double[] vector2 = TextUtils.asciiPositionVector("8x11");
 
         assertEquals(vector2[TextUtils.asciiToInt('x')], 1.0, 0.0001);
+        try {
+            TextUtils.asciiPositionVector("this word");
+        }catch (Exception e){
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+
+
+
     }
 
     @Test

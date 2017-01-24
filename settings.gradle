@@ -1,1 +1,2 @@
 include ":granite-text-classifier"
+include ":granite-associators"

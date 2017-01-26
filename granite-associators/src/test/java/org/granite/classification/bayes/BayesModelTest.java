@@ -30,7 +30,7 @@ public class BayesModelTest {
     @Test
     public void testMeanScoreObservation() throws Exception {
 
-        final BayesModel<String> model = BayesAssociationStatsBuilder
+        final BayesModel<String> model = BayesModelBuilder
             .build(TrainingSet.build(createTrainingRows()));
 
         double bProb = (3.0 / 16.0);

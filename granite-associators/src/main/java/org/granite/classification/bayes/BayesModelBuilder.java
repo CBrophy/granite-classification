@@ -10,7 +10,7 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class BayesAssociationStatsBuilder {
+public class BayesModelBuilder {
 
     public static <K extends Comparable<K>, V> BayesModel<V> build(
         final TrainingSet<K, V> trainingSet

@@ -22,7 +22,7 @@ public abstract class AssociationModel<V> {
 
     public abstract double meanProbability(final V value, final List<V> givenAssociations);
 
-    public Map<V, Double> meanProbability(final List<V> values, final List<V> givenAssociations){
+    public Map<V, Double> meanProbability(final List<V> values, final List<V> givenAssociations) {
         checkNotNull(values, "values");
         checkNotNull(givenAssociations, "givenAssociations");
 
@@ -36,7 +36,7 @@ public abstract class AssociationModel<V> {
 
     }
 
-    public KeyValue<V, Double> mostProbable(final List<V> values, final List<V> givenAssociations){
+    public KeyValue<V, Double> mostProbable(final List<V> values, final List<V> givenAssociations) {
         checkNotNull(values, "values");
         checkNotNull(givenAssociations, "givenAssociations");
 
@@ -48,13 +48,13 @@ public abstract class AssociationModel<V> {
         for (V value : values) {
             double probability = meanProbability(value, givenAssociations);
 
-            if(probability > highestProbability){
+            if (probability > highestProbability) {
                 highestProbability = probability;
                 highestValue = value;
             }
         }
 
-        return new KeyValue(highestValue, highestProbability);
+        return new KeyValue<>(highestValue, highestProbability);
 
     }
 }

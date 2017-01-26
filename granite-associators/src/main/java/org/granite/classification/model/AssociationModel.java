@@ -6,7 +6,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javafx.util.Pair;
+import org.granite.base.KeyValue;
 
 public abstract class AssociationModel<V> {
 
@@ -36,7 +36,7 @@ public abstract class AssociationModel<V> {
 
     }
 
-    public Pair<V, Double> mostProbable(final List<V> values, final List<V> givenAssociations){
+    public KeyValue<V, Double> mostProbable(final List<V> values, final List<V> givenAssociations){
         checkNotNull(values, "values");
         checkNotNull(givenAssociations, "givenAssociations");
 
@@ -54,7 +54,7 @@ public abstract class AssociationModel<V> {
             }
         }
 
-        return new Pair<>(highestValue, highestProbability);
+        return new KeyValue(highestValue, highestProbability);
 
     }
 }

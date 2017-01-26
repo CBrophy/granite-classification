@@ -6,19 +6,21 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class TrainingRow<K extends Comparable<K>,V> implements Comparable<TrainingRow<K,V>> {
+public class TrainingRow<K extends Comparable<K>, V> implements Comparable<TrainingRow<K, V>> {
+
     private K id;
     private List<V> values = new ArrayList<>();
 
-    TrainingRow(){}
+    TrainingRow() {
+    }
 
-    public TrainingRow(K id, Collection<V> values){
+    public TrainingRow(K id, Collection<V> values) {
         this(id);
-        this.values.addAll(checkNotNull(values,"values"));
+        this.values.addAll(checkNotNull(values, "values"));
     }
 
     public TrainingRow(K id) {
-        this.id = checkNotNull(id,"id");
+        this.id = checkNotNull(id, "id");
     }
 
     public K getId() {
@@ -40,7 +42,7 @@ public class TrainingRow<K extends Comparable<K>,V> implements Comparable<Traini
     }
 
     @Override
-    public int compareTo(TrainingRow<K,V> trainingRow) {
+    public int compareTo(TrainingRow<K, V> trainingRow) {
         return getId().compareTo(trainingRow.getId());
     }
 }

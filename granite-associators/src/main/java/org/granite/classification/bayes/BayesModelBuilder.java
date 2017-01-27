@@ -61,8 +61,8 @@ public class BayesModelBuilder {
 
                 checkNotNull(associatedValueStatistics, "associatedValueStatistics");
 
-                final double associationLikelihood = currentValueStatistics
-                    .findAssociationLikelihood(associatedEntry.getKey());
+                final double associationLikelihood = associatedValueStatistics
+                    .getAssociatedValueProbabilities().getOrDefault(value, 0.0);
 
                 final double posterior =
                     (currentValueStatistics.getProbability() * associationLikelihood) /

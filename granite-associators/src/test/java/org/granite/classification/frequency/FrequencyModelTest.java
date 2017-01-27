@@ -47,7 +47,6 @@ public class FrequencyModelTest {
 
         double aCProb = 1.0 / 6.0;
         double bGProb = 1.0 / 9.0;
-        double aGProb = 0.0;
 
         double cMeanProb = model.meanProbability("c", ImmutableList.of("b", "a"));
         double gMeanProb = model.meanProbability("g", ImmutableList.of("b", "a"));

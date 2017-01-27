@@ -39,17 +39,11 @@ public class BayesModel<V> extends AssociationModel<V, BayesAssociationStatistic
         for (V associatedValue : givenAssociations) {
             checkNotNull(associatedValue, "givenAssociations cannot contain a null");
 
-            final BayesAssociationStatistics<V> associatedValueStatistics = getAssociationStatisticsMap()
-                .get(associatedValue);
+            final double probabilityOfValueGivenAssociation = valueStatistics
+                .getAssociatedValuePosteriorProbabilities()
+                .getOrDefault(associatedValue, 0.0);
 
-            if (associatedValueStatistics == null) {
-                results.put(associatedValue, 0.0);
-            } else {
-                results.put(associatedValue, associatedValueStatistics
-                    .getAssociatedValuePosteriorProbabilities()
-                    .getOrDefault(value, 0.0));
-            }
-
+            results.put(associatedValue, probabilityOfValueGivenAssociation);
         }
 
         return results;

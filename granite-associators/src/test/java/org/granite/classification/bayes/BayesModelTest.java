@@ -46,14 +46,20 @@ public class BayesModelTest {
             .get("b");
         final BayesAssociationStatistics<String> aStats = model.getAssociationStatisticsMap()
             .get("a");
+        final BayesAssociationStatistics<String> hStats = model.getAssociationStatisticsMap()
+            .get("h");
+        final BayesAssociationStatistics<String> cStats = model.getAssociationStatisticsMap()
+            .get("c");
 
-        // P(H:B) = P(B) * L(H:B) / P(H)
-        double hBPostProb = bProb * (stats.findAssociationLikelihood("h")) / hProb;
-        double cBPostProb = bProb * (stats.findAssociationLikelihood("c")) / cProb;
-        double cAPostProb = aProb * (aStats.findAssociationLikelihood("c")) / cProb;
-        double hAPostProb = aProb * (aStats.findAssociationLikelihood("h")) / hProb;
+        // P(H:B) = P(H) * P(B:H) / P(B)
+        double hBPostProb = hProb * (stats.getAssociatedValueProbabilities().getOrDefault("h",0.0)) / bProb;
+        double cBPostProb = cProb * (stats.getAssociatedValueProbabilities().getOrDefault("c",0.0)) / bProb;
+        double cAPostProb = cProb * (aStats.getAssociatedValueProbabilities().getOrDefault("c",0.0)) / aProb;
+        double hAPostProb = hProb * (aStats.getAssociatedValueProbabilities().getOrDefault("h",0.0)) / aProb;
 
-        assertEquals(hBPostProb, stats.getAssociatedValuePosteriorProbabilities().get("h"), 0.0001);
+        assertEquals(hBPostProb, hStats.getAssociatedValuePosteriorProbabilities().get("b"), 0.0001);
+        assertEquals(cAPostProb, cStats.getAssociatedValuePosteriorProbabilities().get("a"), 0.0001);
+
 
         double cMeanProb = model.meanProbability("c", ImmutableList.of("b", "a"));
         double hMeanProb = model.meanProbability("h", ImmutableList.of("b", "a"));

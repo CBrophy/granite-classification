@@ -34,8 +34,31 @@ public abstract class AssociationModel<V> {
         return ensembleProbability(value, givenAssociations, StatsTools::mean);
     }
 
+    public Map<V, Double> meanProbability(
+        final List<V> values,
+        final List<V> givenAssociations) {
+        return ensembleProbability(values, givenAssociations, StatsTools::mean);
+    }
+
     public double medianProbability(
         final V value,
+        final List<V> givenAssociations) {
+        return ensembleProbability(
+            value,
+            givenAssociations,
+            probabilities ->
+                PercentileTools.median(
+                    probabilities
+                        .stream()
+                        .sorted()
+                        .collect(Collectors.toList())
+                )
+
+        );
+    }
+
+    public Map<V, Double> medianProbability(
+        final List<V> value,
         final List<V> givenAssociations) {
         return ensembleProbability(
             value,

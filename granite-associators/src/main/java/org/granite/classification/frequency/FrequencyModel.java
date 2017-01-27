@@ -9,19 +9,12 @@ import java.util.Map;
 import org.granite.classification.model.AssociationModel;
 import org.granite.classification.model.AssociationStatistics;
 
-public class FrequencyModel<V> extends AssociationModel<V> {
-
-    private final Map<V, AssociationStatistics<V>> associationStatisticsMap;
+public class FrequencyModel<V> extends AssociationModel<V, AssociationStatistics<V>> {
 
     FrequencyModel(
         Map<V, AssociationStatistics<V>> associationStatisticsMap,
         double totalValueFrequency) {
-        super(totalValueFrequency);
-        this.associationStatisticsMap = associationStatisticsMap;
-    }
-
-    public Map<V, AssociationStatistics<V>> getAssociationStatisticsMap() {
-        return associationStatisticsMap;
+        super(totalValueFrequency, associationStatisticsMap);
     }
 
     @Override
@@ -32,7 +25,7 @@ public class FrequencyModel<V> extends AssociationModel<V> {
         checkNotNull(value, "value");
         checkNotNull(givenAssociations, "givenAssociations");
 
-        final AssociationStatistics<V> valueStatistics = associationStatisticsMap.get(value);
+        final AssociationStatistics<V> valueStatistics = getAssociationStatisticsMap().get(value);
 
         if (valueStatistics == null) {
             return ImmutableMap.of();
@@ -47,7 +40,7 @@ public class FrequencyModel<V> extends AssociationModel<V> {
         for (V associatedValue : givenAssociations) {
             checkNotNull(associatedValue, "givenAssociations cannot contain a null");
 
-            final AssociationStatistics<V> associatedValueStatistics = associationStatisticsMap
+            final AssociationStatistics<V> associatedValueStatistics = getAssociationStatisticsMap()
                 .get(associatedValue);
 
             if (associatedValueStatistics == null) {

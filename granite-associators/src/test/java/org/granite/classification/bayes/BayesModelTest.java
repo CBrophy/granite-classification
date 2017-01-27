@@ -42,9 +42,9 @@ public class BayesModelTest {
         double aCProb = 1.0 / 6.0;
         double bGProb = 1.0 / 9.0;
 
-        final BayesAssociationStatistics<String> stats = model.getBayesAssociationStatisticsMap()
+        final BayesAssociationStatistics<String> stats = model.getAssociationStatisticsMap()
             .get("b");
-        final BayesAssociationStatistics<String> aStats = model.getBayesAssociationStatisticsMap()
+        final BayesAssociationStatistics<String> aStats = model.getAssociationStatisticsMap()
             .get("a");
 
         // P(H:B) = P(B) * L(H:B) / P(H)

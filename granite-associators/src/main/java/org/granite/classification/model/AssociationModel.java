@@ -13,16 +13,25 @@ import org.granite.base.KeyValue;
 import org.granite.math.PercentileTools;
 import org.granite.math.StatsTools;
 
-public abstract class AssociationModel<V> {
+public abstract class AssociationModel<V, S extends AssociationStatistics<V>> {
 
     private final double totalValueFrequency;
+    private final Map<V, S> associationStatisticsMap;
 
-    public AssociationModel(double totalValueFrequency) {
+    public AssociationModel(
+        final double totalValueFrequency,
+        final Map<V, S> associationStatisticsMap
+    ) {
         this.totalValueFrequency = totalValueFrequency;
+        this.associationStatisticsMap = associationStatisticsMap;
     }
 
     public double getTotalValueFrequency() {
         return totalValueFrequency;
+    }
+
+    public Map<V, S> getAssociationStatisticsMap() {
+        return associationStatisticsMap;
     }
 
     public abstract Map<V, Double> supportingProbabilities(final V value,

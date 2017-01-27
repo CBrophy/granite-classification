@@ -9,22 +9,13 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class BayesModel<V> extends AssociationModel<V> {
-
-    private final Map<V, BayesAssociationStatistics<V>> bayesAssociationStatisticsMap;
+public class BayesModel<V> extends AssociationModel<V, BayesAssociationStatistics<V>> {
 
     BayesModel(
         final Map<V, BayesAssociationStatistics<V>> bayesAssociationStatisticsMap,
         final double totalValueFrequency
     ) {
-        super(totalValueFrequency);
-        this.bayesAssociationStatisticsMap = checkNotNull(bayesAssociationStatisticsMap,
-            "bayesAssociationStatisticsMap");
-
-    }
-
-    public Map<V, BayesAssociationStatistics<V>> getBayesAssociationStatisticsMap() {
-        return bayesAssociationStatisticsMap;
+        super(totalValueFrequency, bayesAssociationStatisticsMap);
     }
 
     @Override
@@ -32,7 +23,7 @@ public class BayesModel<V> extends AssociationModel<V> {
         checkNotNull(value, "value");
         checkNotNull(givenAssociations, "givenAssociations");
 
-        final BayesAssociationStatistics<V> valueStatistics = bayesAssociationStatisticsMap
+        final BayesAssociationStatistics<V> valueStatistics = getAssociationStatisticsMap()
             .get(value);
 
         if (valueStatistics == null) {
@@ -48,7 +39,7 @@ public class BayesModel<V> extends AssociationModel<V> {
         for (V associatedValue : givenAssociations) {
             checkNotNull(associatedValue, "givenAssociations cannot contain a null");
 
-            final BayesAssociationStatistics<V> associatedValueStatistics = bayesAssociationStatisticsMap
+            final BayesAssociationStatistics<V> associatedValueStatistics = getAssociationStatisticsMap()
                 .get(associatedValue);
 
             if (associatedValueStatistics == null) {

@@ -1,11 +1,11 @@
 package org.granite.classification.bayes;
 
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableMap;
+import java.util.HashMap;
 import org.granite.classification.model.AssociationModel;
 
 import java.util.List;
 import java.util.Map;
-import org.granite.math.StatsTools;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -28,7 +28,7 @@ public class BayesModel<V> extends AssociationModel<V> {
     }
 
     @Override
-    public double meanProbability(V value, List<V> givenAssociations) {
+    public Map<V, Double> supportingProbabilities(V value, List<V> givenAssociations) {
         checkNotNull(value, "value");
         checkNotNull(givenAssociations, "givenAssociations");
 
@@ -36,14 +36,14 @@ public class BayesModel<V> extends AssociationModel<V> {
             .get(value);
 
         if (valueStatistics == null) {
-            return 0.0;
+            return ImmutableMap.of();
         }
 
         if (givenAssociations.isEmpty()) {
-            return valueStatistics.getLikelihood();
+            return ImmutableMap.of();
         }
 
-        final List<Double> results = new ArrayList<>();
+        final HashMap<V, Double> results = new HashMap<>();
 
         for (V associatedValue : givenAssociations) {
             checkNotNull(associatedValue, "givenAssociations cannot contain a null");
@@ -52,15 +52,15 @@ public class BayesModel<V> extends AssociationModel<V> {
                 .get(associatedValue);
 
             if (associatedValueStatistics == null) {
-                results.add(0.0);
+                results.put(associatedValue, 0.0);
             } else {
-                results.add(associatedValueStatistics
+                results.put(associatedValue, associatedValueStatistics
                     .getAssociatedValuePosteriorProbabilities()
                     .getOrDefault(value, 0.0));
             }
 
         }
 
-        return StatsTools.mean(results);
+        return results;
     }
 }

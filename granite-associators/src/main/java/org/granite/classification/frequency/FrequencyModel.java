@@ -2,12 +2,12 @@ package org.granite.classification.frequency;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.granite.classification.model.AssociationModel;
 import org.granite.classification.model.AssociationStatistics;
-import org.granite.math.StatsTools;
 
 public class FrequencyModel<V> extends AssociationModel<V> {
 
@@ -25,7 +25,7 @@ public class FrequencyModel<V> extends AssociationModel<V> {
     }
 
     @Override
-    public double meanProbability(final V value, List<V> givenAssociations) {
+    public Map<V, Double> supportingProbabilities(V value, List<V> givenAssociations) {
         // Conditional probability of P(A:B)
         // Calculate AVG( P(A ∩ B) / P(B) )
 
@@ -35,14 +35,14 @@ public class FrequencyModel<V> extends AssociationModel<V> {
         final AssociationStatistics<V> valueStatistics = associationStatisticsMap.get(value);
 
         if (valueStatistics == null) {
-            return 0.0;
+            return ImmutableMap.of();
         }
 
         if (givenAssociations.isEmpty()) {
-            return valueStatistics.getProbability();
+            return ImmutableMap.of();
         }
 
-        final List<Double> results = new ArrayList<>();
+        final Map<V, Double> results = new HashMap<V, Double>();
 
         for (V associatedValue : givenAssociations) {
             checkNotNull(associatedValue, "givenAssociations cannot contain a null");
@@ -51,7 +51,7 @@ public class FrequencyModel<V> extends AssociationModel<V> {
                 .get(associatedValue);
 
             if (associatedValueStatistics == null) {
-                results.add(0.0);
+                results.put(associatedValue, 0.0);
             } else {
 
                 final Double associationProbability = associatedValueStatistics
@@ -60,11 +60,11 @@ public class FrequencyModel<V> extends AssociationModel<V> {
 
                 if (associationProbability == null) {
 
-                    results.add(0.0);
+                    results.put(associatedValue, 0.0);
 
                 } else {
 
-                    results.add(
+                    results.put(associatedValue,
                         (valueStatistics.getProbability() * associatedValueStatistics
                             .getProbability())
                             / associationProbability);
@@ -72,6 +72,6 @@ public class FrequencyModel<V> extends AssociationModel<V> {
             }
         }
 
-        return StatsTools.mean(results);
+        return results;
     }
 }

@@ -28,7 +28,7 @@ subprojects {
 
     dependencies {
         compile 'com.google.guava:guava:19.0'
-        compile 'org.granite:granite-base:0.1.38'
+        compile 'org.granite:granite-base:0.1.39'
         compile 'com.squareup.dagger:dagger:1.2.2'
         compile 'com.squareup.dagger:dagger-compiler:1.2.2'
         compile 'javax.inject:javax.inject:1'

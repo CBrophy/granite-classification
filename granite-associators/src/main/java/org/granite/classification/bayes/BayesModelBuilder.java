@@ -43,7 +43,7 @@ public class BayesModelBuilder {
         // Calculate P(value : associatedValue)
         // P(V:A) = (P(A:V) * P(V)) / P(A)
         // P(V) = prior
-        // P(A:V) = P(A:V) / P(A:!V1 U A:!V2 U A:!V3...)
+        // P(A) = evidence
         for (V value : associationStatisticsMap.keySet()) {
 
             final BayesAssociationStatistics<V> currentValueStatistics = associationStatisticsMap

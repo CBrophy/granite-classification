@@ -38,9 +38,9 @@ public class BayesModelTest {
         double aProb = (2.0 / 16.0);
         double cProb = 2.0 / 16.0;
 
-        double bCProb = 2.0 / 9.0;
-        double aCProb = 1.0 / 6.0;
-        double bGProb = 1.0 / 9.0;
+        double bCProb = 2.0 / 12.0;
+        double aCProb = 1.0 / 8.0;
+        double bGProb = 1.0 / 12.0;
 
         final BayesAssociationStatistics<String> stats = model.getAssociationStatisticsMap()
             .get("b");
@@ -68,6 +68,10 @@ public class BayesModelTest {
         assertEquals((hBPostProb + hAPostProb) / 2.0, hMeanProb, 0.00001);
         assertEquals((cBPostProb + cAPostProb) / 2.0, cMeanProb, 0.00001);
 
+        // check identity calculation
+        double bBPostProb = (bProb * stats.getAssociatedValueProbabilities().getOrDefault("b",0.0)) / bProb;
+
+        assertEquals(bBPostProb, stats.getAssociatedValuePosteriorProbabilities().get("b"), 0.0001);
 
     }
 

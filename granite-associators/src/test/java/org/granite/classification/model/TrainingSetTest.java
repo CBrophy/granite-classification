@@ -30,6 +30,8 @@ public class TrainingSetTest {
         assertEquals(16, (int) trainingSet.getTotalValueFrequency());
         assertEquals(3, (int) ((double) trainingSet.getValueFrequency().get("b")));
         assertEquals(2, (int) ((double) trainingSet.getValueToValueFrequency().get("b").get("c")));
+        assertEquals(3, (int) ((double) trainingSet.getValueToValueFrequency().get("b").get("b")));
+
     }
 
 }

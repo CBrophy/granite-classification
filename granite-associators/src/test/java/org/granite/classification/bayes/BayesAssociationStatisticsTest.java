@@ -39,12 +39,14 @@ public class BayesAssociationStatisticsTest {
         // likelihood function
         // L(b:h) = P(b) / P(i ∪ f)
 
-        double prob = 1.0 / 9.0;
-        double prob2 = 2.0 / 9.0;
+        double prob = 1.0 / 12.0;
+        double prob2 = 2.0 / 12.0;
+        double prob3 = 3.0 / 12.0;
 
         assertEquals(
             prob / ProbabilityTools.independentUnion(ImmutableList.of(
                 prob2,
+                prob3,
                 prob,
                 prob,
                 prob,

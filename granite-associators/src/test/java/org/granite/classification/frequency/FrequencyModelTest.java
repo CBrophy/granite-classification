@@ -41,12 +41,12 @@ public class FrequencyModelTest {
 
         assertEquals(bProb, stats.getProbability(), 0.0001);
 
-        double bCProb = 2.0 / 9.0;
-        // P(C:B) = 2.0 / 9.0
+        double bCProb = 2.0 / 12.0;
+        // P(C:B) = 2.0 / 12.0
         assertEquals(bCProb, stats.getAssociatedValueProbabilities().get("c"), 0.0001);
 
-        double aCProb = 1.0 / 6.0;
-        double bGProb = 1.0 / 9.0;
+        double aCProb = 1.0 / 8.0;
+        double bGProb = 1.0 / 12.0;
 
         double cMeanProb = model.meanProbability("c", ImmutableList.of("b", "a"));
         double gMeanProb = model.meanProbability("g", ImmutableList.of("b", "a"));

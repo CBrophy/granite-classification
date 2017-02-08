@@ -4,6 +4,7 @@ package org.granite.classification.frequency;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +39,7 @@ public class FrequencyModelBuilder {
                 .withFrequency(frequencyEntry.getValue())
                 .withProbability(frequencyEntry.getValue() / trainingSet.getTotalValueFrequency());
 
-            final HashMap<V, Double> associationMap = trainingSet.getValueToValueFrequency().get(
+            final ImmutableMap<V, Double> associationMap = trainingSet.getValueToValueFrequency().get(
                 frequencyEntry.getKey());
 
             if (associationMap == null || associationMap.isEmpty()) {

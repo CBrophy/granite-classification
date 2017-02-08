@@ -25,12 +25,25 @@ public class TrainingSetTest {
 
     @Test
     public void build() throws Exception {
-        final TrainingSet<Integer, String> trainingSet = TrainingSet.build(createTrainingRows());
+        final TrainingSet<Integer, String> strictTrainingSet = new TrainingSet.Builder<Integer, String>()
+            .withStrictAssociation(true)
+            .withTrainingRows(createTrainingRows())
+            .build();
+
+        final TrainingSet<Integer, String> trainingSet = new TrainingSet.Builder<Integer, String>()
+            .withStrictAssociation(false)
+            .withTrainingRows(createTrainingRows())
+            .build();
 
         assertEquals(16, (int) trainingSet.getTotalValueFrequency());
         assertEquals(3, (int) ((double) trainingSet.getValueFrequency().get("b")));
         assertEquals(2, (int) ((double) trainingSet.getValueToValueFrequency().get("b").get("c")));
         assertEquals(3, (int) ((double) trainingSet.getValueToValueFrequency().get("b").get("b")));
+
+        assertEquals(16, (int) strictTrainingSet.getTotalValueFrequency());
+        assertEquals(3, (int) ((double) strictTrainingSet.getValueFrequency().get("b")));
+        assertEquals(2, (int) ((double) strictTrainingSet.getValueToValueFrequency().get("b").get("c")));
+        assertNull(strictTrainingSet.getValueToValueFrequency().get("b").get("b"));
 
     }
 

@@ -30,7 +30,10 @@ public class BayesAssociationStatisticsTest {
     @Test
     public void findAssociationLikelihood() throws Exception {
         FrequencyModel<String> model = FrequencyModelBuilder
-            .build(TrainingSet.build(createTrainingRows()));
+            .build(new TrainingSet.Builder<Integer, String>()
+                .withStrictAssociation(false)
+                .withTrainingRows(createTrainingRows())
+                .build());
 
         BayesAssociationStatistics<String> stats = new BayesAssociationStatistics<String>(
             model.getAssociationStatisticsMap().get("b"));

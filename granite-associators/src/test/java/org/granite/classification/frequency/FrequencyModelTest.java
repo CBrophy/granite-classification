@@ -28,7 +28,10 @@ public class FrequencyModelTest {
     @Test
     public void meanProbability() throws Exception {
         final FrequencyModel<String> model = FrequencyModelBuilder.build(
-            TrainingSet.build(createTrainingRows())
+            new TrainingSet.Builder<Integer, String>()
+                .withStrictAssociation(false)
+                .withTrainingRows(createTrainingRows())
+                .build()
         );
 
         final AssociationStatistics<String> stats = model

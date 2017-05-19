@@ -17,7 +17,9 @@ public class ImmutablePhraseTree extends PhraseTree {
         super(
             checkNotNull(phraseTree, "phraseTree").getWordFilter(),
             phraseTree.getStaticPhrases(),
-            phraseTree.getStemmingFunction()
+            phraseTree.getStemmingFunction(),
+            phraseTree.getPhraseSplittingFunction(),
+            phraseTree.getPhraseJoiningFunction()
         );
         this.knownPaths = ImmutableMap.copyOf(phraseTree.getKnownPaths());
         this.nodes = ImmutableMap.copyOf(phraseTree.getNodes());

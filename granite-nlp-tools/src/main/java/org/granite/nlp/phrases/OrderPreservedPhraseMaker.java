@@ -7,18 +7,24 @@ import com.google.common.collect.ImmutableMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class OrderPreservedPhraseMaker implements PhraseMaker {
 
     private final Set<String> wordFilter;
     private final ImmutableMap<String, String> staticPhrases;
+    private final Function<String, List<String>> phraseSplittingFunction;
 
-
-    public OrderPreservedPhraseMaker(final Set<String> wordFilter,
-        final Set<String> staticPhrases) {
+    public OrderPreservedPhraseMaker(
+        final Set<String> wordFilter,
+        final Set<String> staticPhrases,
+        final Function<String, List<String>> phraseSplittingFunction) {
         this.wordFilter = checkNotNull(wordFilter, "wordFilter");
 
         final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+        this.phraseSplittingFunction = checkNotNull(phraseSplittingFunction, "phraseSplittingFunction");
+
 
         checkNotNull(staticPhrases, "staticPhrases")
             .forEach(phrase -> builder.put(phrase.toLowerCase(), phrase));
@@ -42,7 +48,11 @@ public class OrderPreservedPhraseMaker implements PhraseMaker {
             return ImmutableList.of(staticPhrase);
         }
 
-        final List<String> phraseParts = PhraseTools.splitText(trimmed, wordFilter);
+        final List<String> phraseParts = phraseSplittingFunction
+            .apply(trimmed)
+            .stream()
+            .filter(word -> !wordFilter.contains(word))
+            .collect(Collectors.toList());
 
         final HashSet<String> unique = new HashSet<>();
 

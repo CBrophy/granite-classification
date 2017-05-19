@@ -13,10 +13,19 @@ public class HashPhraseTree extends PhraseTree {
     private final HashMap<String, PhraseTreeNode> nodes = new HashMap<>();
     private final HashMap<UUID, PhraseTreeNode> nodesById = new HashMap<>();
 
-    public HashPhraseTree(ImmutableSet<String> wordFilter,
-        ImmutableSet<String> staticPhrases,
-        Function<List<String>, List<String>> stemmingFunction) {
-        super(wordFilter, staticPhrases, stemmingFunction);
+    public HashPhraseTree(
+        final ImmutableSet<String> wordFilter,
+        final ImmutableSet<String> staticPhrases,
+        final Function<List<String>, List<String>> stemmingFunction,
+        final Function<String, List<String>> phraseSplittingFunction,
+        final Function<List<String>, String> phraseJoiningFunction) {
+        super(
+            wordFilter,
+            staticPhrases,
+            stemmingFunction,
+            phraseSplittingFunction,
+            phraseJoiningFunction
+            );
     }
 
     @Override

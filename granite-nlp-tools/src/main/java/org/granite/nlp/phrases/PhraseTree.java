@@ -3,8 +3,12 @@ package org.granite.nlp.phrases;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,37 +18,67 @@ import java.util.stream.Collectors;
 
 public abstract class PhraseTree {
 
+    private static Splitter DEFAULT_SPLITTER = Splitter
+        .on(CharMatcher.whitespace())
+        .trimResults()
+        .omitEmptyStrings();
+    private static Joiner DEFAULT_JOINER = Joiner
+        .on(' ')
+        .skipNulls();
+
     private final SortedPhraseMaker sortedPhraseMaker;
     private final OrderPreservedPhraseMaker orderPreservedPhraseMaker;
     private final ImmutableSet<String> wordFilter;
     private final ImmutableSet<String> staticPhrases;
     private final Function<List<String>, List<String>> stemmingFunction;
+    private final Function<List<String>, String> phraseJoiningFunction;
+    private final Function<String, List<String>> phraseSplittingFunction;
 
     protected PhraseTree() {
         this(
             ImmutableSet.of(),
             ImmutableSet.of(),
-            PhraseTree::getLowerCasedWords);
-    }
-
-    protected PhraseTree(
-        final ImmutableSet<String> wordFilter,
-        final ImmutableSet<String> staticPhrases
-    ) {
-        this(wordFilter, staticPhrases, PhraseTree::getLowerCasedWords);
+            PhraseTree::getLowerCasedWords,
+            phrase -> DEFAULT_SPLITTER.splitToList(phrase),
+            words -> DEFAULT_JOINER.join(words)
+            );
     }
 
     protected PhraseTree(
         final ImmutableSet<String> wordFilter,
         final ImmutableSet<String> staticPhrases,
-        final Function<List<String>, List<String>> stemmingFunction
+        final Function<String, List<String>> phraseSplittingFunction,
+        final Function<List<String>, String> phraseJoiningFunction
+    ) {
+        this(
+            wordFilter,
+            staticPhrases,
+            PhraseTree::getLowerCasedWords,
+            phraseSplittingFunction,
+            phraseJoiningFunction);
+    }
+
+    protected PhraseTree(
+        final ImmutableSet<String> wordFilter,
+        final ImmutableSet<String> staticPhrases,
+        final Function<List<String>, List<String>> stemmingFunction,
+        final Function<String, List<String>> phraseSplittingFunction,
+        final Function<List<String>, String> phraseJoiningFunction
     ) {
 
         this.wordFilter = checkNotNull(wordFilter, "wordFilter");
         this.staticPhrases = checkNotNull(staticPhrases, "staticPhrases");
-        this.sortedPhraseMaker = new SortedPhraseMaker(wordFilter, staticPhrases);
-        this.orderPreservedPhraseMaker = new OrderPreservedPhraseMaker(wordFilter, staticPhrases);
+        this.sortedPhraseMaker = new SortedPhraseMaker(
+            wordFilter,
+            staticPhrases,
+            phraseSplittingFunction);
+        this.orderPreservedPhraseMaker = new OrderPreservedPhraseMaker(
+            wordFilter,
+            staticPhrases,
+            phraseSplittingFunction);
         this.stemmingFunction = checkNotNull(stemmingFunction, "stemmingFunction");
+        this.phraseJoiningFunction = checkNotNull(phraseJoiningFunction, "phraseJoiningFunction");
+        this.phraseSplittingFunction = checkNotNull(phraseSplittingFunction, "phraseSplittingFunction");
 
     }
 
@@ -55,14 +89,21 @@ public abstract class PhraseTree {
             .collect(Collectors.toList());
     }
 
+    public Function<List<String>, String> getPhraseJoiningFunction() {
+        return phraseJoiningFunction;
+    }
+
+    public Function<String, List<String>> getPhraseSplittingFunction() {
+        return phraseSplittingFunction;
+    }
+
     abstract Map<String, PhraseTreeNode> getNodes();
 
     abstract Map<UUID, PhraseTreeNode> getNodesById();
 
     abstract Map<PhraseTreePath, PhraseTreePath> getKnownPaths();
 
-
-    public PhraseTreePath get(final String rawText) {
+     public PhraseTreePath get(final String rawText) {
         checkNotNull(rawText, "rawText");
 
         final String trimmed = rawText.trim();
@@ -229,7 +270,7 @@ public abstract class PhraseTree {
     public String getPhraseText(final PhraseTreePath phraseTreePath) {
         checkNotNull(phraseTreePath, "phraseTreePath");
 
-        StringBuilder builder = new StringBuilder();
+        final List<String> words = new ArrayList<>();
 
         for (UUID uuid : phraseTreePath
             .getOrderedPath()) {
@@ -237,10 +278,10 @@ public abstract class PhraseTree {
 
             checkNotNull(node, "Unknown node id in path!");
 
-            builder = builder.append(node.getUnstemmedKey());
+            words.add(node.getUnstemmedKey());
         }
 
-        return builder.toString();
+        return phraseJoiningFunction.apply(words);
     }
 
     protected SortedPhraseMaker getSortedPhraseMaker() {

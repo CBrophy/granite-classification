@@ -1,5 +1,5 @@
 plugins {
-    id 'pl.allegro.tech.build.axion-release' version '1.4.1'
+    id 'pl.allegro.tech.build.axion-release' version '1.6.0'
 }
 
 scmVersion {
@@ -27,8 +27,8 @@ subprojects {
     }
 
     dependencies {
-        compile 'com.google.guava:guava:19.0'
-        compile 'org.granite:granite-base:0.1.40'
+        compile 'com.google.guava:guava:21.0'
+        compile 'org.granite:granite-base:0.1.42'
         compile 'com.squareup.dagger:dagger:1.2.2'
         compile 'com.squareup.dagger:dagger-compiler:1.2.2'
         compile 'javax.inject:javax.inject:1'
@@ -38,5 +38,9 @@ subprojects {
 }
 
 project(':granite-associators') {
+
+}
+
+project(':granite-nlp-tools') {
 
 }

@@ -1,1 +1,2 @@
 include ":granite-associators"
+include ":granite-nlp-tools"

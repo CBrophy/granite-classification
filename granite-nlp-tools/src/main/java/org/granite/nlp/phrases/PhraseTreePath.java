@@ -3,11 +3,13 @@ package org.granite.nlp.phrases;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -91,5 +93,51 @@ public class PhraseTreePath {
         }
 
         return true;
+    }
+
+    public Set<PhraseTreePath> extractComponentPhraseTreePaths(){
+        final ImmutableSet.Builder<PhraseTreePath> builder = ImmutableSet.builder();
+
+        final List<List<UUID>> components = merge(orderedPath);
+
+        for (List<UUID> component : components) {
+            if(component.size() == orderedPath.size()){
+                continue;
+            }
+
+            builder
+                .add(PhraseTreePath.of(ImmutableList.copyOf(component)));
+        }
+
+        return builder.build();
+    }
+
+    private static List<List<UUID>> merge(final List<UUID> items) {
+        if (items.size() <= 1) {
+            return ImmutableList.of();
+        }
+
+        final List<List<UUID>> result = new ArrayList<>();
+
+        for(int outerIndex = 0; outerIndex < items.size(); outerIndex++){
+
+          final List<UUID> component = new ArrayList<>();
+
+          component.add(items.get(outerIndex));
+
+          result.add(ImmutableList.copyOf(component));
+
+          for(int innerIndex = 0; innerIndex < items.size(); innerIndex++){
+
+            if(innerIndex == outerIndex) continue;
+
+            component.add(items.get(innerIndex));
+
+            result.add(ImmutableList.copyOf(component));
+          }
+
+        }
+
+        return result;
     }
 }

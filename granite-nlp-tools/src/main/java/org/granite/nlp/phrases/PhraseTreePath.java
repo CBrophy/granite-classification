@@ -6,8 +6,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -38,7 +38,7 @@ public class PhraseTreePath {
             identitySet.add(uuid);
         }
 
-        final int hashCode = Objects.hash(identitySet);
+        final int hashCode = Arrays.hashCode(identitySet.toArray());
 
         return new PhraseTreePath(
             ImmutableList.copyOf(orderedPath),
@@ -70,5 +70,26 @@ public class PhraseTreePath {
             Sets.intersection(getIdentitySet(), ((PhraseTreePath) obj).getIdentitySet())
                 .size() ==
                 getIdentitySet().size();
+    }
+
+    public boolean divergesFrom(final PhraseTreePath phraseTreePath){
+        checkNotNull(phraseTreePath, "phraseTreePath");
+
+        return !listsMatch(getOrderedPath(), phraseTreePath.getOrderedPath());
+    }
+
+    private boolean listsMatch(ImmutableList<UUID> orderedPath1, ImmutableList<UUID> orderedPath2){
+        checkNotNull(orderedPath1, "orderedPath1");
+        checkNotNull(orderedPath2, "orderedPath2");
+
+        if(orderedPath1.size() != orderedPath2.size()) return false;
+
+        for(int index = 0; index < orderedPath1.size(); index++){
+            if(!orderedPath1.get(index).equals(orderedPath2.get(index))){
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -8,6 +8,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,11 +19,11 @@ import java.util.stream.Collectors;
 
 public abstract class PhraseTree {
 
-    private static Splitter DEFAULT_SPLITTER = Splitter
+    public static Splitter DEFAULT_SPLITTER = Splitter
         .on(CharMatcher.whitespace())
         .trimResults()
         .omitEmptyStrings();
-    private static Joiner DEFAULT_JOINER = Joiner
+    public static Joiner DEFAULT_JOINER = Joiner
         .on(' ')
         .skipNulls();
 
@@ -96,6 +97,8 @@ public abstract class PhraseTree {
     public Function<String, List<String>> getPhraseSplittingFunction() {
         return phraseSplittingFunction;
     }
+
+    abstract Multimap<PhraseTreePath, PhraseTreePath> getAlternativePaths();
 
     abstract Map<String, PhraseTreeNode> getNodes();
 
@@ -226,8 +229,13 @@ public abstract class PhraseTree {
 
         final PhraseTreePath phraseTreePath = PhraseTreePath.of(path);
 
-        return getKnownPaths().computeIfAbsent(phraseTreePath, key -> key);
+        final PhraseTreePath knownPath = getKnownPaths().computeIfAbsent(phraseTreePath, key -> key);
 
+        if(knownPath.divergesFrom(phraseTreePath)){
+            getAlternativePaths().put(knownPath, phraseTreePath);
+        }
+
+        return knownPath;
     }
 
     public String getSynonym(final String rawPhrase) {
@@ -274,6 +282,23 @@ public abstract class PhraseTree {
 
         for (UUID uuid : phraseTreePath
             .getOrderedPath()) {
+            final PhraseTreeNode node = getNodesById().get(uuid);
+
+            checkNotNull(node, "Unknown node id in path!");
+
+            words.add(node.getUnstemmedKey());
+        }
+
+        return phraseJoiningFunction.apply(words);
+    }
+
+    public String getIdentityPhraseText(final PhraseTreePath phraseTreePath) {
+        checkNotNull(phraseTreePath, "phraseTreePath");
+
+        final List<String> words = new ArrayList<>();
+
+        for (UUID uuid : phraseTreePath
+            .getIdentitySet()) {
             final PhraseTreeNode node = getNodesById().get(uuid);
 
             checkNotNull(node, "Unknown node id in path!");

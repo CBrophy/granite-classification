@@ -1,6 +1,8 @@
 package org.granite.nlp.phrases;
 
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +14,20 @@ public class HashPhraseTree extends PhraseTree {
     private final HashMap<PhraseTreePath, PhraseTreePath> knownPaths = new HashMap<>();
     private final HashMap<String, PhraseTreeNode> nodes = new HashMap<>();
     private final HashMap<UUID, PhraseTreeNode> nodesById = new HashMap<>();
+    private final HashMultimap<PhraseTreePath, PhraseTreePath> alternativePaths = HashMultimap.create();
+
+    public HashPhraseTree(
+        final ImmutableSet<String> wordFilter,
+        final ImmutableSet<String> staticPhrases,
+        final Function<List<String>, List<String>> stemmingFunction) {
+        super(
+            wordFilter,
+            staticPhrases,
+            stemmingFunction,
+            phrase -> DEFAULT_SPLITTER.splitToList(phrase),
+            words -> DEFAULT_JOINER.join(words)
+        );
+    }
 
     public HashPhraseTree(
         final ImmutableSet<String> wordFilter,
@@ -29,6 +45,11 @@ public class HashPhraseTree extends PhraseTree {
     }
 
     @Override
+    Multimap<PhraseTreePath, PhraseTreePath> getAlternativePaths() {
+        return alternativePaths;
+    }
+
+    @Override
     Map<String, PhraseTreeNode> getNodes() {
         return nodes;
     }
@@ -42,4 +63,6 @@ public class HashPhraseTree extends PhraseTree {
     Map<PhraseTreePath, PhraseTreePath> getKnownPaths() {
         return knownPaths;
     }
+
+
 }

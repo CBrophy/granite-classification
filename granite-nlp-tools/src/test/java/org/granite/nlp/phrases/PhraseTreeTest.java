@@ -1,6 +1,7 @@
 package org.granite.nlp.phrases;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.common.collect.ImmutableSet;
 import org.junit.Test;
@@ -8,7 +9,7 @@ import org.junit.Test;
 public class PhraseTreeTest {
 
   @Test
-  public void testPhraseTree(){
+  public void testPhraseTree() {
     final String phrase = "the quick brown fox jumped over the lazy dog";
     final String phrase2 = "the lazy dog jumped over the quick brown fox";
 

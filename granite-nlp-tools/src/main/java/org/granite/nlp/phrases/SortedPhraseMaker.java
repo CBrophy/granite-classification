@@ -12,76 +12,76 @@ import java.util.stream.Collectors;
 
 public class SortedPhraseMaker implements PhraseMaker {
 
-    private final Set<String> wordFilter;
-    private final ImmutableMap<String, String> staticPhrases;
-    private final Function<String, List<String>> phraseSplittingFunction;
+  private final Set<String> wordFilter;
+  private final ImmutableMap<String, String> staticPhrases;
+  private final Function<String, List<String>> phraseSplittingFunction;
 
-    public SortedPhraseMaker(
-        final Set<String> wordFilter,
-        final Set<String> staticPhrases,
-        final Function<String, List<String>> phraseSplittingFunction) {
+  public SortedPhraseMaker(
+      final Set<String> wordFilter,
+      final Set<String> staticPhrases,
+      final Function<String, List<String>> phraseSplittingFunction) {
 
-        this.wordFilter = checkNotNull(wordFilter, "wordFilter");
-        this.phraseSplittingFunction = checkNotNull(phraseSplittingFunction, "phraseSplittingFunction");
+    this.wordFilter = checkNotNull(wordFilter, "wordFilter");
+    this.phraseSplittingFunction = checkNotNull(phraseSplittingFunction, "phraseSplittingFunction");
 
-        final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+    final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
 
-        checkNotNull(staticPhrases, "staticPhrases")
-            .forEach(phrase -> builder.put(phrase.toLowerCase(), phrase));
+    checkNotNull(staticPhrases, "staticPhrases")
+        .forEach(phrase -> builder.put(phrase.toLowerCase(), phrase));
 
-        this.staticPhrases = builder.build();
+    this.staticPhrases = builder.build();
 
+  }
+
+  @Override
+  public ImmutableList<String> rawTextToPhrase(String rawText) {
+    checkNotNull(rawText, "rawText");
+
+    final String trimmed = rawText.trim();
+
+    if (trimmed.isEmpty()) {
+      return ImmutableList.of();
     }
 
-    @Override
-    public ImmutableList<String> rawTextToPhrase(String rawText) {
-        checkNotNull(rawText, "rawText");
+    final String staticPhrase = staticPhrases.get(trimmed.toLowerCase());
 
-        final String trimmed = rawText.trim();
-
-        if (trimmed.isEmpty()) {
-            return ImmutableList.of();
-        }
-
-        final String staticPhrase = staticPhrases.get(trimmed.toLowerCase());
-
-        if (staticPhrase != null) {
-            return ImmutableList.of(staticPhrase);
-        }
-
-        final List<String> phraseParts = phraseSplittingFunction
-            .apply(trimmed)
-            .stream()
-            .filter(word -> !wordFilter.contains(word))
-            .collect(Collectors.toList());
-
-        final HashSet<String> unique = new HashSet<>();
-
-        final ImmutableList.Builder<String> builder = ImmutableList.builder();
-
-        phraseParts
-            .stream()
-            .sorted()
-            .filter(word -> !unique.contains(word.toLowerCase()))
-            .forEach(word -> {
-                builder.add(word);
-                unique.add(word.toLowerCase());
-            });
-
-        return builder.build();
-
+    if (staticPhrase != null) {
+      return ImmutableList.of(staticPhrase);
     }
 
+    final List<String> phraseParts = phraseSplittingFunction
+        .apply(trimmed)
+        .stream()
+        .filter(word -> !wordFilter.contains(word))
+        .collect(Collectors.toList());
 
-    @Override
-    public String rawTextToCorrectedPhrase(String rawText) {
-        StringBuilder builder = new StringBuilder();
+    final HashSet<String> unique = new HashSet<>();
 
-        for (String word : rawTextToPhrase(rawText)) {
-            builder = builder.append(word);
-        }
+    final ImmutableList.Builder<String> builder = ImmutableList.builder();
 
-        return builder.toString();
+    phraseParts
+        .stream()
+        .sorted()
+        .filter(word -> !unique.contains(word.toLowerCase()))
+        .forEach(word -> {
+          builder.add(word);
+          unique.add(word.toLowerCase());
+        });
+
+    return builder.build();
+
+  }
+
+
+  @Override
+  public String rawTextToCorrectedPhrase(String rawText) {
+    StringBuilder builder = new StringBuilder();
+
+    for (String word : rawTextToPhrase(rawText)) {
+      builder = builder.append(word);
     }
+
+    return builder.toString();
+  }
 
 }

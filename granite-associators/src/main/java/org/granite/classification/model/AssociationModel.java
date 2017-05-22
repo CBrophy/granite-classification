@@ -15,146 +15,146 @@ import org.granite.math.StatsTools;
 
 public abstract class AssociationModel<V, S extends AssociationStatistics<V>> {
 
-    private final double totalValueFrequency;
-    private final Map<V, S> associationStatisticsMap;
+  private final double totalValueFrequency;
+  private final Map<V, S> associationStatisticsMap;
 
-    public AssociationModel(
-        final double totalValueFrequency,
-        final Map<V, S> associationStatisticsMap
-    ) {
-        this.totalValueFrequency = totalValueFrequency;
-        this.associationStatisticsMap = associationStatisticsMap;
+  public AssociationModel(
+      final double totalValueFrequency,
+      final Map<V, S> associationStatisticsMap
+  ) {
+    this.totalValueFrequency = totalValueFrequency;
+    this.associationStatisticsMap = associationStatisticsMap;
+  }
+
+  public double getTotalValueFrequency() {
+    return totalValueFrequency;
+  }
+
+  public Map<V, S> getAssociationStatisticsMap() {
+    return associationStatisticsMap;
+  }
+
+  public abstract Map<V, Double> supportingProbabilities(final V value,
+      final List<V> givenAssociations);
+
+  public double meanProbability(
+      final V value,
+      final List<V> givenAssociations) {
+    return ensembleProbability(value, givenAssociations, StatsTools::mean);
+  }
+
+  public Map<V, Double> meanProbability(
+      final List<V> values,
+      final List<V> givenAssociations) {
+    return ensembleProbability(values, givenAssociations, StatsTools::mean);
+  }
+
+  public double medianProbability(
+      final V value,
+      final List<V> givenAssociations) {
+    return ensembleProbability(
+        value,
+        givenAssociations,
+        probabilities ->
+            PercentileTools.median(
+                probabilities
+                    .stream()
+                    .sorted()
+                    .collect(Collectors.toList())
+            )
+
+    );
+  }
+
+  public Map<V, Double> medianProbability(
+      final List<V> value,
+      final List<V> givenAssociations) {
+    return ensembleProbability(
+        value,
+        givenAssociations,
+        probabilities ->
+            PercentileTools.median(
+                probabilities
+                    .stream()
+                    .sorted()
+                    .collect(Collectors.toList())
+            )
+
+    );
+  }
+
+  public double ensembleProbability(
+      final V value,
+      final List<V> givenAssociations,
+      final Function<Collection<Double>, Double> ensembleFunction) {
+    checkNotNull(value, "value");
+    checkNotNull(givenAssociations, "givenAssociations");
+    checkNotNull(ensembleFunction, "ensembleFunction");
+
+    final Map<V, Double> results = supportingProbabilities(value, givenAssociations);
+
+    if (results == null || results.isEmpty()) {
+      return 0.0;
     }
 
-    public double getTotalValueFrequency() {
-        return totalValueFrequency;
+    return ensembleFunction.apply(results.values());
+  }
+
+  public Map<V, Double> ensembleProbability(
+      final List<V> values,
+      final List<V> givenAssociations,
+      final Function<Collection<Double>, Double> ensembleFunction) {
+    checkNotNull(values, "values");
+    checkNotNull(givenAssociations, "givenAssociations");
+
+    final HashMap<V, Double> result = new HashMap<>();
+
+    for (V value : values) {
+      result.put(value, ensembleProbability(value, givenAssociations, ensembleFunction));
     }
 
-    public Map<V, S> getAssociationStatisticsMap() {
-        return associationStatisticsMap;
+    return result;
+
+  }
+
+  public Map<V, Map<V, Double>> supportingProbabilities(final List<V> values,
+      final List<V> givenAssociations) {
+    checkNotNull(values, "values");
+    checkNotNull(givenAssociations, "givenAssociations");
+
+    final HashMap<V, Map<V, Double>> result = new HashMap<>();
+
+    for (V value : values) {
+      result.put(value, supportingProbabilities(value, givenAssociations));
     }
 
-    public abstract Map<V, Double> supportingProbabilities(final V value,
-        final List<V> givenAssociations);
+    return result;
 
-    public double meanProbability(
-        final V value,
-        final List<V> givenAssociations) {
-        return ensembleProbability(value, givenAssociations, StatsTools::mean);
+  }
+
+  public KeyValue<V, Double> mostProbable(
+      final List<V> values,
+      final List<V> givenAssociations,
+      final Function<Collection<Double>, Double> ensembleFunction) {
+    checkNotNull(values, "values");
+    checkNotNull(givenAssociations, "givenAssociations");
+
+    final HashMap<V, Double> result = new HashMap<>();
+
+    V highestValue = null;
+    double highestProbability = -1.0;
+
+    for (V value : values) {
+      double probability = ensembleProbability(value, givenAssociations, ensembleFunction);
+
+      if (probability > highestProbability) {
+        highestProbability = probability;
+        highestValue = value;
+      }
     }
 
-    public Map<V, Double> meanProbability(
-        final List<V> values,
-        final List<V> givenAssociations) {
-        return ensembleProbability(values, givenAssociations, StatsTools::mean);
-    }
+    return new KeyValue<>(highestValue, highestProbability);
 
-    public double medianProbability(
-        final V value,
-        final List<V> givenAssociations) {
-        return ensembleProbability(
-            value,
-            givenAssociations,
-            probabilities ->
-                PercentileTools.median(
-                    probabilities
-                        .stream()
-                        .sorted()
-                        .collect(Collectors.toList())
-                )
-
-        );
-    }
-
-    public Map<V, Double> medianProbability(
-        final List<V> value,
-        final List<V> givenAssociations) {
-        return ensembleProbability(
-            value,
-            givenAssociations,
-            probabilities ->
-                PercentileTools.median(
-                    probabilities
-                        .stream()
-                        .sorted()
-                        .collect(Collectors.toList())
-                )
-
-        );
-    }
-
-    public double ensembleProbability(
-        final V value,
-        final List<V> givenAssociations,
-        final Function<Collection<Double>, Double> ensembleFunction) {
-        checkNotNull(value, "value");
-        checkNotNull(givenAssociations, "givenAssociations");
-        checkNotNull(ensembleFunction, "ensembleFunction");
-
-        final Map<V, Double> results = supportingProbabilities(value, givenAssociations);
-
-        if (results == null || results.isEmpty()) {
-            return 0.0;
-        }
-
-        return ensembleFunction.apply(results.values());
-    }
-
-    public Map<V, Double> ensembleProbability(
-        final List<V> values,
-        final List<V> givenAssociations,
-        final Function<Collection<Double>, Double> ensembleFunction) {
-        checkNotNull(values, "values");
-        checkNotNull(givenAssociations, "givenAssociations");
-
-        final HashMap<V, Double> result = new HashMap<>();
-
-        for (V value : values) {
-            result.put(value, ensembleProbability(value, givenAssociations, ensembleFunction));
-        }
-
-        return result;
-
-    }
-
-    public Map<V, Map<V, Double>> supportingProbabilities(final List<V> values,
-        final List<V> givenAssociations) {
-        checkNotNull(values, "values");
-        checkNotNull(givenAssociations, "givenAssociations");
-
-        final HashMap<V, Map<V, Double>> result = new HashMap<>();
-
-        for (V value : values) {
-            result.put(value, supportingProbabilities(value, givenAssociations));
-        }
-
-        return result;
-
-    }
-
-    public KeyValue<V, Double> mostProbable(
-        final List<V> values,
-        final List<V> givenAssociations,
-        final Function<Collection<Double>, Double> ensembleFunction) {
-        checkNotNull(values, "values");
-        checkNotNull(givenAssociations, "givenAssociations");
-
-        final HashMap<V, Double> result = new HashMap<>();
-
-        V highestValue = null;
-        double highestProbability = -1.0;
-
-        for (V value : values) {
-            double probability = ensembleProbability(value, givenAssociations, ensembleFunction);
-
-            if (probability > highestProbability) {
-                highestProbability = probability;
-                highestValue = value;
-            }
-        }
-
-        return new KeyValue<>(highestValue, highestProbability);
-
-    }
+  }
 
 }

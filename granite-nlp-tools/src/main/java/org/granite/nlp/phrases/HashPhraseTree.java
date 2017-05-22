@@ -11,58 +11,59 @@ import java.util.function.Function;
 
 public class HashPhraseTree extends PhraseTree {
 
-    private final HashMap<PhraseTreePath, PhraseTreePath> knownPaths = new HashMap<>();
-    private final HashMap<String, PhraseTreeNode> nodes = new HashMap<>();
-    private final HashMap<UUID, PhraseTreeNode> nodesById = new HashMap<>();
-    private final HashMultimap<PhraseTreePath, PhraseTreePath> alternativePaths = HashMultimap.create();
+  private final HashMap<PhraseTreePath, PhraseTreePath> knownPaths = new HashMap<>();
+  private final HashMap<String, PhraseTreeNode> nodes = new HashMap<>();
+  private final HashMap<UUID, PhraseTreeNode> nodesById = new HashMap<>();
+  private final HashMultimap<PhraseTreePath, PhraseTreePath> alternativePaths = HashMultimap
+      .create();
 
-    public HashPhraseTree(
-        final ImmutableSet<String> wordFilter,
-        final ImmutableSet<String> staticPhrases,
-        final Function<List<String>, List<String>> stemmingFunction) {
-        super(
-            wordFilter,
-            staticPhrases,
-            stemmingFunction,
-            phrase -> DEFAULT_SPLITTER.splitToList(phrase),
-            words -> DEFAULT_JOINER.join(words)
-        );
-    }
+  public HashPhraseTree(
+      final ImmutableSet<String> wordFilter,
+      final ImmutableSet<String> staticPhrases,
+      final Function<List<String>, List<String>> stemmingFunction) {
+    super(
+        wordFilter,
+        staticPhrases,
+        stemmingFunction,
+        phrase -> DEFAULT_SPLITTER.splitToList(phrase),
+        words -> DEFAULT_JOINER.join(words)
+    );
+  }
 
-    public HashPhraseTree(
-        final ImmutableSet<String> wordFilter,
-        final ImmutableSet<String> staticPhrases,
-        final Function<List<String>, List<String>> stemmingFunction,
-        final Function<String, List<String>> phraseSplittingFunction,
-        final Function<List<String>, String> phraseJoiningFunction) {
-        super(
-            wordFilter,
-            staticPhrases,
-            stemmingFunction,
-            phraseSplittingFunction,
-            phraseJoiningFunction
-            );
-    }
+  public HashPhraseTree(
+      final ImmutableSet<String> wordFilter,
+      final ImmutableSet<String> staticPhrases,
+      final Function<List<String>, List<String>> stemmingFunction,
+      final Function<String, List<String>> phraseSplittingFunction,
+      final Function<List<String>, String> phraseJoiningFunction) {
+    super(
+        wordFilter,
+        staticPhrases,
+        stemmingFunction,
+        phraseSplittingFunction,
+        phraseJoiningFunction
+    );
+  }
 
-    @Override
-    Multimap<PhraseTreePath, PhraseTreePath> getAlternativePaths() {
-        return alternativePaths;
-    }
+  @Override
+  Multimap<PhraseTreePath, PhraseTreePath> getAlternativePaths() {
+    return alternativePaths;
+  }
 
-    @Override
-    Map<String, PhraseTreeNode> getNodes() {
-        return nodes;
-    }
+  @Override
+  Map<String, PhraseTreeNode> getNodes() {
+    return nodes;
+  }
 
-    @Override
-    Map<UUID, PhraseTreeNode> getNodesById() {
-        return nodesById;
-    }
+  @Override
+  Map<UUID, PhraseTreeNode> getNodesById() {
+    return nodesById;
+  }
 
-    @Override
-    Map<PhraseTreePath, PhraseTreePath> getKnownPaths() {
-        return knownPaths;
-    }
+  @Override
+  Map<PhraseTreePath, PhraseTreePath> getKnownPaths() {
+    return knownPaths;
+  }
 
 
 }

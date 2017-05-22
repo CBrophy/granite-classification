@@ -15,83 +15,83 @@ import org.granite.math.ProbabilityTools;
 
 public class FrequencyModelBuilder {
 
-    public static <K extends Comparable<K>, V> FrequencyModel<V> build(
-        final TrainingSet<K, V> trainingSet
-    ) {
-        checkNotNull(trainingSet, "trainingSet");
+  public static <K extends Comparable<K>, V> FrequencyModel<V> build(
+      final TrainingSet<K, V> trainingSet
+  ) {
+    checkNotNull(trainingSet, "trainingSet");
 
-        checkArgument(trainingSet.getTotalValueFrequency() >= 1.0, "Training set has no values");
+    checkArgument(trainingSet.getTotalValueFrequency() >= 1.0, "Training set has no values");
 
-        final HashMap<V, AssociationStatistics<V>> result = new HashMap<>();
+    final HashMap<V, AssociationStatistics<V>> result = new HashMap<>();
 
-        // Calculate overall probability of each value and its associations
-        for (Map.Entry<V, Double> frequencyEntry : trainingSet.getValueFrequency().entrySet()) {
-            final AssociationStatistics<V> associationStatistics = new AssociationStatistics<V>(
-                frequencyEntry.getKey()
-            );
+    // Calculate overall probability of each value and its associations
+    for (Map.Entry<V, Double> frequencyEntry : trainingSet.getValueFrequency().entrySet()) {
+      final AssociationStatistics<V> associationStatistics = new AssociationStatistics<V>(
+          frequencyEntry.getKey()
+      );
 
-            result.put(
-                frequencyEntry.getKey(),
-                associationStatistics
-            );
+      result.put(
+          frequencyEntry.getKey(),
+          associationStatistics
+      );
 
-            associationStatistics
-                .withFrequency(frequencyEntry.getValue())
-                .withProbability(frequencyEntry.getValue() / trainingSet.getTotalValueFrequency());
+      associationStatistics
+          .withFrequency(frequencyEntry.getValue())
+          .withProbability(frequencyEntry.getValue() / trainingSet.getTotalValueFrequency());
 
-            final ImmutableMap<V, Double> associationMap = trainingSet.getValueToValueFrequency().get(
-                frequencyEntry.getKey());
+      final ImmutableMap<V, Double> associationMap = trainingSet.getValueToValueFrequency().get(
+          frequencyEntry.getKey());
 
-            if (associationMap == null || associationMap.isEmpty()) {
-                continue;
-            }
+      if (associationMap == null || associationMap.isEmpty()) {
+        continue;
+      }
 
-            double totalAssociations = 0.0;
+      double totalAssociations = 0.0;
 
-            for (Double associationFrequency : associationMap.values()) {
-                totalAssociations += associationFrequency;
-            }
+      for (Double associationFrequency : associationMap.values()) {
+        totalAssociations += associationFrequency;
+      }
 
-            associationStatistics
-                .withAssociationFrequency(totalAssociations);
+      associationStatistics
+          .withAssociationFrequency(totalAssociations);
 
-            // Calculate P(associatedValue : value)
-            for (Map.Entry<V, Double> associationEntry : associationMap.entrySet()) {
-                associationStatistics.getAssociatedValueProbabilities()
-                    .put(
-                        associationEntry.getKey(),
-                        associationEntry.getValue() / totalAssociations);
-            }
-        }
-
-        calculateLikelihoods(result);
-
-        return new FrequencyModel<>(
-            result,
-            trainingSet.getTotalValueFrequency()
-        );
+      // Calculate P(associatedValue : value)
+      for (Map.Entry<V, Double> associationEntry : associationMap.entrySet()) {
+        associationStatistics.getAssociatedValueProbabilities()
+            .put(
+                associationEntry.getKey(),
+                associationEntry.getValue() / totalAssociations);
+      }
     }
 
-    private static <V> void calculateLikelihoods(
-        final HashMap<V, AssociationStatistics<V>> associationStatistics) {
-        for (Map.Entry<V, AssociationStatistics<V>> statisticsEntry : associationStatistics
-            .entrySet()) {
+    calculateLikelihoods(result);
 
-            final List<Double> allOtherProbabilities = associationStatistics
-                .entrySet()
-                .stream()
-                .filter(entry -> !entry.getKey().equals(statisticsEntry.getKey()))
-                .map(entry -> entry.getValue().getProbability())
-                .collect(Collectors.toList());
+    return new FrequencyModel<>(
+        result,
+        trainingSet.getTotalValueFrequency()
+    );
+  }
 
-            statisticsEntry
-                .getValue()
-                .withLikelihood(
-                    statisticsEntry.getValue().getProbability() /
-                        ProbabilityTools.independentUnion(allOtherProbabilities)
-                );
-        }
+  private static <V> void calculateLikelihoods(
+      final HashMap<V, AssociationStatistics<V>> associationStatistics) {
+    for (Map.Entry<V, AssociationStatistics<V>> statisticsEntry : associationStatistics
+        .entrySet()) {
 
+      final List<Double> allOtherProbabilities = associationStatistics
+          .entrySet()
+          .stream()
+          .filter(entry -> !entry.getKey().equals(statisticsEntry.getKey()))
+          .map(entry -> entry.getValue().getProbability())
+          .collect(Collectors.toList());
+
+      statisticsEntry
+          .getValue()
+          .withLikelihood(
+              statisticsEntry.getValue().getProbability() /
+                  ProbabilityTools.independentUnion(allOtherProbabilities)
+          );
     }
+
+  }
 
 }

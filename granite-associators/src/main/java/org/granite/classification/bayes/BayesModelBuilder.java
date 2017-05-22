@@ -1,81 +1,80 @@
 package org.granite.classification.bayes;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.HashMap;
+import java.util.Map;
 import org.granite.classification.frequency.FrequencyModel;
 import org.granite.classification.frequency.FrequencyModelBuilder;
 import org.granite.classification.model.AssociationStatistics;
 import org.granite.classification.model.TrainingSet;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-
 public class BayesModelBuilder {
 
-    public static <K extends Comparable<K>, V> BayesModel<V> build(
-        final TrainingSet<K, V> trainingSet
-    ) {
+  public static <K extends Comparable<K>, V> BayesModel<V> build(
+      final TrainingSet<K, V> trainingSet
+  ) {
 
-        checkNotNull(trainingSet, "trainingSet");
+    checkNotNull(trainingSet, "trainingSet");
 
-        final FrequencyModel<V> frequencyModel = FrequencyModelBuilder
-            .build(trainingSet);
+    final FrequencyModel<V> frequencyModel = FrequencyModelBuilder
+        .build(trainingSet);
 
-        final HashMap<V, BayesAssociationStatistics<V>> result = new HashMap<>();
+    final HashMap<V, BayesAssociationStatistics<V>> result = new HashMap<>();
 
-        for (AssociationStatistics<V> associationStatistics : frequencyModel
-            .getAssociationStatisticsMap().values()) {
+    for (AssociationStatistics<V> associationStatistics : frequencyModel
+        .getAssociationStatisticsMap().values()) {
 
-            final BayesAssociationStatistics<V> bayesAssociationStatistics = new BayesAssociationStatistics<>(
-                associationStatistics);
+      final BayesAssociationStatistics<V> bayesAssociationStatistics = new BayesAssociationStatistics<>(
+          associationStatistics);
 
-            result.put(bayesAssociationStatistics.getValue(), bayesAssociationStatistics);
-        }
-
-        calculateAssociativePosteriors(result);
-
-        return new BayesModel<>(result, frequencyModel.getTotalValueFrequency());
+      result.put(bayesAssociationStatistics.getValue(), bayesAssociationStatistics);
     }
 
-    private static <V> void calculateAssociativePosteriors(
-        final Map<V, BayesAssociationStatistics<V>> associationStatisticsMap) {
+    calculateAssociativePosteriors(result);
 
-        // Calculate P(value : associatedValue)
-        // P(V:A) = (P(A:V) * P(V)) / P(A)
-        // P(V) = prior
-        // P(A) = evidence
-        for (V value : associationStatisticsMap.keySet()) {
+    return new BayesModel<>(result, frequencyModel.getTotalValueFrequency());
+  }
 
-            final BayesAssociationStatistics<V> currentValueStatistics = associationStatisticsMap
-                .get(value);
+  private static <V> void calculateAssociativePosteriors(
+      final Map<V, BayesAssociationStatistics<V>> associationStatisticsMap) {
 
-            checkNotNull(currentValueStatistics, "currentValueStatistics");
+    // Calculate P(value : associatedValue)
+    // P(V:A) = (P(A:V) * P(V)) / P(A)
+    // P(V) = prior
+    // P(A) = evidence
+    for (V value : associationStatisticsMap.keySet()) {
 
-            for (Map.Entry<V, Double> associatedEntry : currentValueStatistics
-                .getAssociatedValueProbabilities()
-                .entrySet()) {
+      final BayesAssociationStatistics<V> currentValueStatistics = associationStatisticsMap
+          .get(value);
 
-                final BayesAssociationStatistics<V> associatedValueStatistics = associationStatisticsMap
-                    .get(
-                        associatedEntry.getKey());
+      checkNotNull(currentValueStatistics, "currentValueStatistics");
 
-                checkNotNull(associatedValueStatistics, "associatedValueStatistics");
+      for (Map.Entry<V, Double> associatedEntry : currentValueStatistics
+          .getAssociatedValueProbabilities()
+          .entrySet()) {
 
-                final double associationLikelihood = associatedValueStatistics
-                    .getAssociatedValueProbabilities().getOrDefault(value, 0.0);
+        final BayesAssociationStatistics<V> associatedValueStatistics = associationStatisticsMap
+            .get(
+                associatedEntry.getKey());
 
-                final double posterior =
-                    (currentValueStatistics.getProbability() * associationLikelihood) /
-                        associatedValueStatistics.getProbability();
+        checkNotNull(associatedValueStatistics, "associatedValueStatistics");
 
-                currentValueStatistics.getAssociatedValuePosteriorProbabilities()
-                    .put(associatedEntry.getKey(),
-                        posterior);
+        final double associationLikelihood = associatedValueStatistics
+            .getAssociatedValueProbabilities().getOrDefault(value, 0.0);
 
-            }
+        final double posterior =
+            (currentValueStatistics.getProbability() * associationLikelihood) /
+                associatedValueStatistics.getProbability();
 
-        }
+        currentValueStatistics.getAssociatedValuePosteriorProbabilities()
+            .put(associatedEntry.getKey(),
+                posterior);
+
+      }
 
     }
+
+  }
 
 }

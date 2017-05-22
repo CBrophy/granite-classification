@@ -1,7 +1,5 @@
 package org.granite.nlp.phrases;
 
-import static org.junit.Assert.*;
-
 import com.google.common.collect.ImmutableList;
 import java.util.Set;
 import java.util.UUID;
@@ -27,7 +25,6 @@ public class PhraseTreePathTest {
         .of(source);
 
     final Set<PhraseTreePath> components = path1.extractComponentPhraseTreePaths();
-
 
     //TODO
 

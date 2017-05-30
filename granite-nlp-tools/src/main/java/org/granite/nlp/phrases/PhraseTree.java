@@ -98,15 +98,15 @@ public abstract class PhraseTree {
     return phraseSplittingFunction;
   }
 
-  abstract Multimap<PhraseTreePath, PhraseTreePath> getAlternativePaths();
+  abstract Multimap<Phrase, Phrase> getAlternativePaths();
 
   abstract Map<String, PhraseTreeNode> getNodes();
 
   abstract Map<UUID, PhraseTreeNode> getNodesById();
 
-  abstract Map<PhraseTreePath, PhraseTreePath> getKnownPaths();
+  abstract Map<Phrase, Phrase> getKnownPaths();
 
-  public PhraseTreePath get(final String rawText) {
+  public Phrase get(final String rawText) {
     checkNotNull(rawText, "rawText");
 
     final String trimmed = rawText.trim();
@@ -165,12 +165,12 @@ public abstract class PhraseTree {
         "Path did not generate the correct number of nodes for: %s",
         rawText);
 
-    final PhraseTreePath phraseTreePath = PhraseTreePath.of(path);
+    final Phrase phrase = IdentityPhrase.of(path);
 
-    return getKnownPaths().get(phraseTreePath);
+    return getKnownPaths().get(phrase);
   }
 
-  public PhraseTreePath computeIfAbsent(final String rawText) {
+  public Phrase computeIfAbsent(final String rawText) {
     checkNotNull(rawText, "rawText");
 
     final String trimmed = rawText.trim();
@@ -227,12 +227,12 @@ public abstract class PhraseTree {
         "Path did not generate the correct number of nodes for: %s",
         rawText);
 
-    final PhraseTreePath phraseTreePath = PhraseTreePath.of(path);
+    final Phrase phrase = IdentityPhrase.of(path);
 
-    final PhraseTreePath knownPath = getKnownPaths().computeIfAbsent(phraseTreePath, key -> key);
+    final Phrase knownPath = getKnownPaths().computeIfAbsent(phrase, key -> key);
 
-    if (knownPath.divergesFrom(phraseTreePath)) {
-      getAlternativePaths().put(knownPath, phraseTreePath);
+    if (knownPath.divergesFrom(phrase)) {
+      getAlternativePaths().put(knownPath, phrase);
     }
 
     return knownPath;
@@ -241,7 +241,7 @@ public abstract class PhraseTree {
   public String getSynonym(final String rawPhrase) {
     checkNotNull(rawPhrase, "rawPhrase");
 
-    final PhraseTreePath path = get(rawPhrase);
+    final Phrase path = get(rawPhrase);
 
     if (path == null) {
       return rawPhrase;
@@ -264,10 +264,10 @@ public abstract class PhraseTree {
         .rawTextToPhrase(trimmed);
   }
 
-  public List<String> getOrderPreservedParts(final PhraseTreePath phraseTreePath) {
-    checkNotNull(phraseTreePath, "phraseTreePath");
+  public List<String> getOrderPreservedParts(final Phrase phrase) {
+    checkNotNull(phrase, "phrase");
 
-    return phraseTreePath
+    return phrase
         .getOrderedPath()
         .stream()
         .filter(id -> getNodesById().containsKey(id))
@@ -275,12 +275,12 @@ public abstract class PhraseTree {
         .collect(Collectors.toList());
   }
 
-  public String getPhraseText(final PhraseTreePath phraseTreePath) {
-    checkNotNull(phraseTreePath, "phraseTreePath");
+  public String getPhraseText(final Phrase phrase) {
+    checkNotNull(phrase, "phrase");
 
     final List<String> words = new ArrayList<>();
 
-    for (UUID uuid : phraseTreePath
+    for (UUID uuid : phrase
         .getOrderedPath()) {
       final PhraseTreeNode node = getNodesById().get(uuid);
 
@@ -292,12 +292,12 @@ public abstract class PhraseTree {
     return phraseJoiningFunction.apply(words);
   }
 
-  public String getIdentityPhraseText(final PhraseTreePath phraseTreePath) {
-    checkNotNull(phraseTreePath, "phraseTreePath");
+  public String getIdentityPhraseText(final Phrase phrase) {
+    checkNotNull(phrase, "phrase");
 
     final List<String> words = new ArrayList<>();
 
-    for (UUID uuid : phraseTreePath
+    for (UUID uuid : phrase
         .getIdentitySet()) {
       final PhraseTreeNode node = getNodesById().get(uuid);
 
@@ -329,22 +329,45 @@ public abstract class PhraseTree {
     return staticPhrases;
   }
 
-  public Map<PhraseTreePath, List<PhraseTreePath>> generateComponentMap(
+  public Map<Phrase, List<Phrase>> generateOrderedComponentMap(
       final int maxComponentLength) {
 
-    final HashMap<PhraseTreePath, List<PhraseTreePath>> result = new HashMap<>();
+    final HashMap<Phrase, List<Phrase>> result = new HashMap<>();
 
-    for (PhraseTreePath phraseTreePath : getKnownPaths()
+    for (Phrase phrase : getKnownPaths()
         .keySet()) {
 
-      final List<PhraseTreePath> componentPaths = phraseTreePath
+      final List<Phrase> componentPaths = OrderedPhrase
+          .of(phrase)
           .componentize(maxComponentLength);
 
       componentPaths
           .forEach(path ->
               result
                   .computeIfAbsent(path, key -> new ArrayList<>())
-                  .add(phraseTreePath)
+                  .add(phrase)
+          );
+    }
+
+    return result;
+  }
+
+  public Map<Phrase, List<Phrase>> generateIdentityComponentMap(
+      final int maxComponentLength) {
+
+    final HashMap<Phrase, List<Phrase>> result = new HashMap<>();
+
+    for (Phrase phrase : getKnownPaths()
+        .keySet()) {
+
+      final List<Phrase> componentPaths = phrase
+          .componentize(maxComponentLength);
+
+      componentPaths
+          .forEach(path ->
+              result
+                  .computeIfAbsent(path, key -> new ArrayList<>())
+                  .add(phrase)
           );
     }
 

@@ -1,14 +1,14 @@
 package org.granite.nlp.phrases;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import org.junit.Test;
 
 /**
@@ -16,7 +16,7 @@ import org.junit.Test;
  * Date: 5/26/17
  * Time: 10:33 AM
  */
-public class PhraseTreePathTest {
+public class IdentityPhraseTest {
 
   @Test
   public void componentize() throws Exception {
@@ -29,26 +29,17 @@ public class PhraseTreePathTest {
     testMap.put("lazy", UUID.randomUUID());
     testMap.put("dog", UUID.randomUUID());
 
-    final Map<UUID, String> inverseMap = testMap
-        .entrySet()
-        .stream()
-        .collect(Collectors.toMap(Entry::getValue, Entry::getKey));
+    final Phrase phrase = IdentityPhrase.of(testMap.values());
 
-    final PhraseTreePath phraseTreePath = PhraseTreePath.of(testMap.values());
-
-    final List<PhraseTreePath> componentPaths = phraseTreePath
+    final List<Phrase> componentPaths = phrase
         .componentize(3);
 
-    //expected size = sum(n! / ((n - r)! * r!)) for all r
+    // sum(nCr)
     // n = 5
-    // r = 3,2,1
-    // n! = 120
-    // 3! = 6
-    // 2! = 2
-    // size for 3 = 10
-    // size for 2 = 10
-    // size for 1 = 5
-    // sum = 25
+    // nCr for r = 3 = 10
+    // nCr for r = 2 = 10
+    // nCr for r = 1 = 5
+
     assertEquals(25, componentPaths.size());
 
     final AtomicInteger threeCount = new AtomicInteger(0);
@@ -73,6 +64,38 @@ public class PhraseTreePathTest {
     assertEquals(10, twoCount.get());
     assertEquals(5, oneCount.get());
     assertEquals(0, otherCount.get());
+  }
+
+  @Test
+  public void testComponentOf(){
+    final ImmutableList<UUID> l1 = ImmutableList.of(
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        UUID.randomUUID()
+    );
+
+    final ImmutableList<UUID> l2 = ImmutableList.of(
+        l1.get(2),
+        l1.get(3),
+        l1.get(4)
+    );
+
+    final ImmutableList<UUID> l3 = ImmutableList.of(
+        l1.get(2),
+        l1.get(3),
+        l1.get(4),
+        UUID.randomUUID()
+    );
+
+    final IdentityPhrase p1 = IdentityPhrase.of(l1);
+    final IdentityPhrase p2 = IdentityPhrase.of(l2);
+    final IdentityPhrase p3 = IdentityPhrase.of(l3);
+
+    assertTrue(p2.isComponentOf(p1));
+    assertFalse(p1.isComponentOf(p2));
+    assertFalse(p3.isComponentOf(p1));
   }
 
 }

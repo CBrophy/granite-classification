@@ -25,11 +25,11 @@ public class PhraseTreeTest {
         list -> list
     );
 
-    final PhraseTreePath path1 = phraseTree.computeIfAbsent(phrase);
-    final PhraseTreePath path2 = phraseTree.computeIfAbsent(phrase2);
-    PhraseTreePath path3 = null;
+    final Phrase path1 = phraseTree.computeIfAbsent(phrase);
+    final Phrase path2 = phraseTree.computeIfAbsent(phrase2);
+    Phrase path3 = null;
 
-    for (PhraseTreePath phraseTreePath : phraseTree.getAlternativePaths().get(path1)) {
+    for (Phrase phraseTreePath : phraseTree.getAlternativePaths().get(path1)) {
       path3 = phraseTreePath;
       break;
     }
@@ -52,13 +52,13 @@ public class PhraseTreeTest {
         list -> list
     );
 
-    final PhraseTreePath path1 = phraseTree.computeIfAbsent(phrase);
-    final PhraseTreePath path2 = phraseTree.computeIfAbsent(phrase2);
+    final Phrase path1 = phraseTree.computeIfAbsent(phrase);
+    final Phrase path2 = phraseTree.computeIfAbsent(phrase2);
 
-    final Map<PhraseTreePath, List<PhraseTreePath>> componentMap = phraseTree
-        .generateComponentMap(2);
+    final Map<Phrase, List<Phrase>> orderedComponentMap = phraseTree
+        .generateOrderedComponentMap(2);
 
-    assertEquals(6, componentMap.size());
+    assertEquals(9, orderedComponentMap.size());
 
     final ImmutableSet<String> componentSet = ImmutableSet.of(
         "quick",
@@ -72,14 +72,32 @@ public class PhraseTreeTest {
         "fox quick"
     );
 
-    final Set<String> generatedComponents = componentMap
+    final Set<String> generatedOrderedComponents = orderedComponentMap
+        .keySet()
+        .stream()
+        .map(phraseTree::getPhraseText)
+        .collect(Collectors.toSet());
+
+    final SetView<String> orderedMatched = Sets.intersection(componentSet, generatedOrderedComponents);
+
+    assertEquals(9, orderedMatched.size());
+
+    final Map<Phrase, List<Phrase>> identityComponentMap = phraseTree
+        .generateIdentityComponentMap(2);
+
+    assertEquals(6, identityComponentMap.size());
+
+    final Set<String> generatedIdentityComponents = identityComponentMap
         .keySet()
         .stream()
         .map(phraseTree::getIdentityPhraseText)
         .collect(Collectors.toSet());
 
-    final SetView<String> matched = Sets.intersection(componentSet, generatedComponents);
+    final SetView<String> identityMatched = Sets.intersection(componentSet, generatedIdentityComponents);
 
-    assertEquals(6, matched.size());
+    assertEquals(6, identityMatched.size());
+
+
+
   }
 }

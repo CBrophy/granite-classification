@@ -10,10 +10,10 @@ import java.util.UUID;
 
 public class ImmutablePhraseTree extends PhraseTree {
 
-  private final ImmutableMap<PhraseTreePath, PhraseTreePath> knownPaths;
+  private final ImmutableMap<Phrase, Phrase> knownPaths;
   private final ImmutableMap<String, PhraseTreeNode> nodes;
   private final ImmutableMap<UUID, PhraseTreeNode> nodesById;
-  private final ImmutableMultimap<PhraseTreePath, PhraseTreePath> alternativePaths;
+  private final ImmutableMultimap<Phrase, Phrase> alternativePaths;
 
 
   public ImmutablePhraseTree(PhraseTree phraseTree) {
@@ -32,12 +32,12 @@ public class ImmutablePhraseTree extends PhraseTree {
 
   @Override
   @Deprecated
-  public PhraseTreePath computeIfAbsent(String rawText) {
+  public Phrase computeIfAbsent(String rawText) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  Multimap<PhraseTreePath, PhraseTreePath> getAlternativePaths() {
+  Multimap<Phrase, Phrase> getAlternativePaths() {
     return alternativePaths;
   }
 
@@ -52,7 +52,7 @@ public class ImmutablePhraseTree extends PhraseTree {
   }
 
   @Override
-  Map<PhraseTreePath, PhraseTreePath> getKnownPaths() {
+  Map<Phrase, Phrase> getKnownPaths() {
     return knownPaths;
   }
 }

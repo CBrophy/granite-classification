@@ -11,10 +11,10 @@ import java.util.function.Function;
 
 public class HashPhraseTree extends PhraseTree {
 
-  private final HashMap<PhraseTreePath, PhraseTreePath> knownPaths = new HashMap<>();
+  private final HashMap<Phrase, Phrase> knownPaths = new HashMap<>();
   private final HashMap<String, PhraseTreeNode> nodes = new HashMap<>();
   private final HashMap<UUID, PhraseTreeNode> nodesById = new HashMap<>();
-  private final HashMultimap<PhraseTreePath, PhraseTreePath> alternativePaths = HashMultimap
+  private final HashMultimap<Phrase, Phrase> alternativePaths = HashMultimap
       .create();
 
   public HashPhraseTree(
@@ -46,7 +46,7 @@ public class HashPhraseTree extends PhraseTree {
   }
 
   @Override
-  Multimap<PhraseTreePath, PhraseTreePath> getAlternativePaths() {
+  Multimap<Phrase, Phrase> getAlternativePaths() {
     return alternativePaths;
   }
 
@@ -61,7 +61,7 @@ public class HashPhraseTree extends PhraseTree {
   }
 
   @Override
-  Map<PhraseTreePath, PhraseTreePath> getKnownPaths() {
+  Map<Phrase, Phrase> getKnownPaths() {
     return knownPaths;
   }
 

@@ -328,4 +328,26 @@ public abstract class PhraseTree {
   protected ImmutableSet<String> getStaticPhrases() {
     return staticPhrases;
   }
+
+  public Map<PhraseTreePath, List<PhraseTreePath>> generateComponentMap(
+      final int maxComponentLength) {
+
+    final HashMap<PhraseTreePath, List<PhraseTreePath>> result = new HashMap<>();
+
+    for (PhraseTreePath phraseTreePath : getKnownPaths()
+        .keySet()) {
+
+      final List<PhraseTreePath> componentPaths = phraseTreePath
+          .componentize(maxComponentLength);
+
+      componentPaths
+          .forEach(path ->
+              result
+                  .computeIfAbsent(path, key -> new ArrayList<>())
+                  .add(phraseTreePath)
+          );
+    }
+
+    return result;
+  }
 }

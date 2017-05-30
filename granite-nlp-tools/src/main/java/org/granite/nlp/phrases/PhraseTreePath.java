@@ -3,15 +3,14 @@ package org.granite.nlp.phrases;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import org.granite.collections.CombinationGenerator;
 
 public class PhraseTreePath {
 
@@ -97,51 +96,42 @@ public class PhraseTreePath {
     return true;
   }
 
-  public Set<PhraseTreePath> extractComponentPhraseTreePaths() {
-    final ImmutableSet.Builder<PhraseTreePath> builder = ImmutableSet.builder();
-
-    final List<List<UUID>> components = merge(orderedPath);
-
-    for (List<UUID> component : components) {
-      if (component.size() == orderedPath.size()) {
-        continue;
-      }
-
-      builder
-          .add(PhraseTreePath.of(ImmutableList.copyOf(component)));
-    }
-
-    return builder.build();
-  }
-
-  private static List<List<UUID>> merge(final List<UUID> items) {
-    if (items.size() <= 1) {
+  public List<PhraseTreePath> componentize(int maxComponentLength) {
+    if (identitySet.isEmpty() || maxComponentLength < 1) {
       return ImmutableList.of();
     }
 
-    final List<List<UUID>> result = new ArrayList<>();
+    int maxLength =
+        maxComponentLength > identitySet.size() ? identitySet.size() : maxComponentLength;
 
-    for (int outerIndex = 0; outerIndex < items.size(); outerIndex++) {
+    final ImmutableList<UUID> identityElements = identitySet.asList();
 
-      final List<UUID> component = new ArrayList<>();
+    final List<PhraseTreePath> results = new ArrayList<>();
 
-      component.add(items.get(outerIndex));
+    for (int currentLength = 1; currentLength <= maxLength; currentLength++) {
 
-      result.add(ImmutableList.copyOf(component));
+      final CombinationGenerator combinationGenerator = new CombinationGenerator(
+          identityElements.size(),
+          currentLength
+      );
 
-      for (int innerIndex = 0; innerIndex < items.size(); innerIndex++) {
+      List<UUID> currentPath;
 
-        if (innerIndex == outerIndex) {
-          continue;
+      while (combinationGenerator.hasMore()) {
+        currentPath = new ArrayList<>();
+
+        final int[] indices = combinationGenerator.getNext();
+
+        for(int index = 0; index < indices.length; index++){
+          currentPath.add(identityElements.get(indices[index]));
         }
 
-        component.add(items.get(innerIndex));
-
-        result.add(ImmutableList.copyOf(component));
+        results.add(PhraseTreePath.of(currentPath));
       }
 
     }
 
-    return result;
+    return results;
   }
+
 }

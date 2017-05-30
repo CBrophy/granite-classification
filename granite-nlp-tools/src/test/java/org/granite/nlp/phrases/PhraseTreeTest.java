@@ -66,7 +66,10 @@ public class PhraseTreeTest {
         "fox",
         "quick brown",
         "brown fox",
-        "quick fox"
+        "quick fox",
+        "brown quick",
+        "fox brown",
+        "fox quick"
     );
 
     final Set<String> generatedComponents = componentMap

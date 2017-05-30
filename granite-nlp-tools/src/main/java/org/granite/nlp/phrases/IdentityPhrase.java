@@ -66,7 +66,7 @@ public class IdentityPhrase extends Phrase {
   }
 
   @Override
-  protected boolean isComponentOf(Phrase phrase) {
+  public boolean isComponentOf(Phrase phrase) {
     checkNotNull(phrase, "phrase");
 
     if(getIdentitySet().size() > phrase.getIdentitySet().size()) {

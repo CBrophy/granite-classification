@@ -69,7 +69,7 @@ public class OrderedPhrase extends Phrase {
   }
 
   @Override
-  protected boolean isComponentOf(Phrase phrase) {
+  public boolean isComponentOf(Phrase phrase) {
     checkNotNull(phrase, "phrase");
 
     if(getOrderedPath().size() > phrase.getOrderedPath().size()) {

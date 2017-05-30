@@ -100,6 +100,6 @@ public abstract class Phrase {
 
   protected abstract Phrase create(final Iterable<UUID> path);
 
-  protected abstract boolean isComponentOf(final Phrase phrase);
+  public abstract boolean isComponentOf(final Phrase phrase);
 
 }

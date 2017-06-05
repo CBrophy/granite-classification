@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.granite.collections.ListTools;
 
 /**
@@ -103,6 +104,30 @@ public class OrderedPhrase extends Phrase {
 
     return false;
 
+  }
+
+  public static OrderedPhrase extractOrderedComponent(
+      final IdentityPhrase component,
+      final Phrase container
+      ) {
+    checkNotNull(component, "component");
+    checkNotNull(container, "container");
+
+    if(!component.isComponentOf(container)){
+      return null;
+    }
+
+    if(component.getIdentitySet().size() == 1){
+      return OrderedPhrase.of(component);
+    }
+
+    final List<UUID> orderedPath = container
+        .getOrderedPath()
+        .stream()
+        .filter(component.getIdentitySet()::contains)
+        .collect(Collectors.toList());
+
+    return OrderedPhrase.of(orderedPath);
   }
 
 }

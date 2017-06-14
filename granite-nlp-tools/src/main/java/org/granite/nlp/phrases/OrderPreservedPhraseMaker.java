@@ -4,13 +4,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class OrderPreservedPhraseMaker implements PhraseMaker {
+public class OrderPreservedPhraseMaker implements PhraseMaker, Serializable {
 
   private final Set<String> wordFilter;
   private final ImmutableMap<String, String> staticPhrases;

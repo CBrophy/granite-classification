@@ -9,6 +9,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,7 +18,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public abstract class PhraseTree {
+public abstract class PhraseTree implements Serializable {
 
   public static Splitter DEFAULT_SPLITTER = Splitter
       .on(CharMatcher.whitespace())

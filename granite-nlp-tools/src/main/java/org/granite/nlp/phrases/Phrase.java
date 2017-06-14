@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -12,7 +13,7 @@ import org.apache.commons.collections4.iterators.PermutationIterator;
 import org.granite.collections.CombinationGenerator;
 import org.granite.collections.ListTools;
 
-public abstract class Phrase {
+public abstract class Phrase implements Serializable {
 
   private ImmutableList<UUID> orderedPath;
   private ImmutableSortedSet<UUID> identitySet;

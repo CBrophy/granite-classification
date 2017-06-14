@@ -2,10 +2,11 @@ package org.granite.nlp.phrases;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.UUID;
 
-public class PhraseTreeNode {
+public class PhraseTreeNode implements Serializable {
 
   private String key;
   private String unstemmedKey;

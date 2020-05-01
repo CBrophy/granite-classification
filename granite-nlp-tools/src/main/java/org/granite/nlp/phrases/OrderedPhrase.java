@@ -13,9 +13,7 @@ import java.util.stream.Collectors;
 import org.granite.collections.ListTools;
 
 /**
- * User: cbrophy
- * Date: 5/30/17
- * Time: 10:10 AM
+ * User: cbrophy Date: 5/30/17 Time: 10:10 AM
  */
 public class OrderedPhrase extends Phrase {
 
@@ -73,7 +71,7 @@ public class OrderedPhrase extends Phrase {
   public boolean isComponentOf(Phrase phrase) {
     checkNotNull(phrase, "phrase");
 
-    if(getOrderedPath().size() > phrase.getOrderedPath().size()) {
+    if (getOrderedPath().size() > phrase.getOrderedPath().size()) {
       return false;
     }
 
@@ -82,9 +80,9 @@ public class OrderedPhrase extends Phrase {
     for (UUID uuid : phrase
         .getOrderedPath()) {
 
-      if(getIdentitySet().contains(uuid)){
+      if (getIdentitySet().contains(uuid)) {
 
-        if(getOrderedPath().get(currentIndex).equals(uuid)){
+        if (getOrderedPath().get(currentIndex).equals(uuid)) {
 
           currentIndex++;
 
@@ -96,7 +94,7 @@ public class OrderedPhrase extends Phrase {
 
       }
 
-      if(currentIndex >= getOrderedPath().size()){
+      if (currentIndex >= getOrderedPath().size()) {
         // Found all phrase parts in order
         return true;
       }
@@ -109,15 +107,15 @@ public class OrderedPhrase extends Phrase {
   public static OrderedPhrase extractOrderedComponent(
       final IdentityPhrase component,
       final Phrase container
-      ) {
+  ) {
     checkNotNull(component, "component");
     checkNotNull(container, "container");
 
-    if(!component.isComponentOf(container)){
+    if (!component.isComponentOf(container)) {
       return null;
     }
 
-    if(component.getIdentitySet().size() == 1){
+    if (component.getIdentitySet().size() == 1) {
       return OrderedPhrase.of(component);
     }
 

@@ -12,9 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 /**
- * User: cbrophy
- * Date: 5/26/17
- * Time: 10:33 AM
+ * User: cbrophy Date: 5/26/17 Time: 10:33 AM
  */
 public class IdentityPhraseTest {
 
@@ -49,11 +47,11 @@ public class IdentityPhraseTest {
 
     componentPaths
         .forEach(path -> {
-          if(path.getIdentitySet().size() == 3){
+          if (path.getIdentitySet().size() == 3) {
             threeCount.incrementAndGet();
-          } else if(path.getIdentitySet().size() == 2){
+          } else if (path.getIdentitySet().size() == 2) {
             twoCount.incrementAndGet();
-          } else if(path.getIdentitySet().size() == 1){
+          } else if (path.getIdentitySet().size() == 1) {
             oneCount.incrementAndGet();
           } else {
             otherCount.incrementAndGet();
@@ -67,7 +65,7 @@ public class IdentityPhraseTest {
   }
 
   @Test
-  public void testComponentOf(){
+  public void testComponentOf() {
     final ImmutableList<UUID> l1 = ImmutableList.of(
         UUID.randomUUID(),
         UUID.randomUUID(),

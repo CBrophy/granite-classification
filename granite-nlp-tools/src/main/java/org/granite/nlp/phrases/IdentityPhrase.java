@@ -12,9 +12,7 @@ import java.util.TreeSet;
 import java.util.UUID;
 
 /**
- * User: cbrophy
- * Date: 5/30/17
- * Time: 11:45 AM
+ * User: cbrophy Date: 5/30/17 Time: 11:45 AM
  */
 public class IdentityPhrase extends Phrase {
 
@@ -69,7 +67,7 @@ public class IdentityPhrase extends Phrase {
   public boolean isComponentOf(Phrase phrase) {
     checkNotNull(phrase, "phrase");
 
-    if(getIdentitySet().size() > phrase.getIdentitySet().size()) {
+    if (getIdentitySet().size() > phrase.getIdentitySet().size()) {
       return false;
     }
 

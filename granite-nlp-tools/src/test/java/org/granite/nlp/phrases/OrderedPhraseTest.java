@@ -14,9 +14,7 @@ import org.granite.collections.ListTools;
 import org.junit.Test;
 
 /**
- * User: cbrophy
- * Date: 5/30/17
- * Time: 12:18 PM
+ * User: cbrophy Date: 5/30/17 Time: 12:18 PM
  */
 public class OrderedPhraseTest {
 

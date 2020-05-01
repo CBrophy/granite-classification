@@ -42,7 +42,7 @@ public class PhraseTreeTest {
   }
 
   @Test
-  public void testPhraseComponents(){
+  public void testPhraseComponents() {
     final String phrase = "the quick brown fox";
     final String phrase2 = "the brown quick fox";
 
@@ -78,7 +78,8 @@ public class PhraseTreeTest {
         .map(phraseTree::getPhraseText)
         .collect(Collectors.toSet());
 
-    final SetView<String> orderedMatched = Sets.intersection(componentSet, generatedOrderedComponents);
+    final SetView<String> orderedMatched = Sets
+        .intersection(componentSet, generatedOrderedComponents);
 
     assertEquals(9, orderedMatched.size());
 
@@ -93,10 +94,10 @@ public class PhraseTreeTest {
         .map(phraseTree::getIdentityPhraseText)
         .collect(Collectors.toSet());
 
-    final SetView<String> identityMatched = Sets.intersection(componentSet, generatedIdentityComponents);
+    final SetView<String> identityMatched = Sets
+        .intersection(componentSet, generatedIdentityComponents);
 
     assertEquals(6, identityMatched.size());
-
 
 
   }
